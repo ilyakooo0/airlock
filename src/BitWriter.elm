@@ -1,6 +1,11 @@
-module BitWriter exposing (..)
+module BitWriter exposing
+    ( BitWriter
+    , bit
+    , bits
+    , empty
+    , run
+    )
 
-import BitParser as BP
 import Bitwise
 import Bytes exposing (Bytes)
 import Bytes.Encode as BE
@@ -67,15 +72,12 @@ bits bs writer =
 
 
 
--- PERF: don't go through BitParser to not hold all bits in memory
-
-
-bytes : Bytes -> BitWriter -> BitWriter
-bytes bite writer =
-    case BP.run (BP.rawBits (Bytes.width bite * 8)) bite of
-        -- this is bad, but shouldn't happen
-        Nothing ->
-            writer
-
-        Just bs ->
-            bits bs writer
+-- -- PERF: don't go through BitParser to not hold all bits in memory
+-- bytes : Bytes -> BitWriter -> BitWriter
+-- bytes bite writer =
+--     case BP.run (BP.rawBits (Bytes.width bite * 8)) bite of
+--         -- this is bad, but shouldn't happen
+--         Nothing ->
+--             writer
+--         Just bs ->
+--             bits bs writer
