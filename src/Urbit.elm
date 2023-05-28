@@ -1,4 +1,4 @@
-module Urbit exposing (Noun(..), mat, rub)
+module Urbit exposing (Noun(..), cue, jam, mat, rub)
 
 import BitParser as BP exposing (BitParser)
 import BitWriter as BW exposing (BitWriter)
@@ -11,6 +11,52 @@ import List.Extra as List
 type Noun
     = Cell ( Noun, Noun )
     | Atom Bytes
+
+
+jam : Noun -> BitWriter -> BitWriter
+jam noun writer =
+    case noun of
+        Atom atom ->
+            writer
+                |> BW.bit 0
+                |> mat atom
+
+        Cell ( a, b ) ->
+            writer
+                |> BW.bit 1
+                |> BW.bit 0
+                |> jam a
+                |> jam b
+
+
+cue : BitParser Noun
+cue =
+    BP.bit
+        |> BP.andThen
+            (\isAtom ->
+                if isAtom == 0 then
+                    rub |> BP.map Atom
+
+                else
+                    BP.bit
+                        |> BP.andThen
+                            (\isRef ->
+                                if isRef == 0 then
+                                    cue
+                                        |> BP.andThen
+                                            (\a ->
+                                                cue
+                                                    |> BP.andThen
+                                                        (\b ->
+                                                            Cell ( a, b )
+                                                                |> BP.succeed
+                                                        )
+                                            )
+
+                                else
+                                    BP.fail
+                            )
+            )
 
 
 isSig : Bytes -> Bool
