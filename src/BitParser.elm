@@ -5,6 +5,7 @@ module BitParser exposing
     , bits
     , bitsToInt
     , fail
+    , getOffset
     , intBits
     , map
     , rawBits
@@ -20,11 +21,12 @@ import Bytes.Encode as BE
 
 run : BitParser a -> Bytes -> Maybe a
 run (BitParser f) bytes =
-    BD.decode (f { running = Nothing }) bytes |> Maybe.map Tuple.second
+    BD.decode (f { running = Nothing, offset = 0 }) bytes |> Maybe.map Tuple.second
 
 
 type alias BitParserState =
     { running : Maybe { byte : Int, length : Int }
+    , offset : Int
     }
 
 
@@ -32,16 +34,27 @@ type BitParser a
     = BitParser (BitParserState -> BD.Decoder ( BitParserState, a ))
 
 
+getOffset : BitParser Int
+getOffset =
+    BitParser (\state -> BD.succeed ( state, state.offset ))
+
+
 bit : BitParser Int
 bit =
     BitParser
-        (\{ running } ->
+        (\{ running, offset } ->
+            let
+                newOffset =
+                    offset + 1
+            in
             case running of
                 Nothing ->
                     BD.unsignedInt8
                         |> BD.map
                             (\i ->
-                                ( { running = Just { byte = Bitwise.shiftRightBy 1 i, length = 7 } }
+                                ( { running = Just { byte = Bitwise.shiftRightBy 1 i, length = 7 }
+                                  , offset = newOffset
+                                  }
                                 , Bitwise.and 1 i
                                 )
                             )
@@ -49,10 +62,12 @@ bit =
                 Just { byte, length } ->
                     BD.succeed
                         (if length == 1 then
-                            ( { running = Nothing }, byte )
+                            ( { running = Nothing, offset = newOffset }, byte )
 
                          else
-                            ( { running = Just { byte = Bitwise.shiftRightBy 1 byte, length = length - 1 } }
+                            ( { running = Just { byte = Bitwise.shiftRightBy 1 byte, length = length - 1 }
+                              , offset = newOffset
+                              }
                             , Bitwise.and 1 byte
                             )
                         )

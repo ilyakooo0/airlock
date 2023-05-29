@@ -3,6 +3,7 @@ module BitWriter exposing
     , bit
     , bits
     , empty
+    , getOffset
     , run
     )
 
@@ -13,7 +14,7 @@ import Bytes.Encode as BE
 
 empty : BitWriter
 empty =
-    BitWriter { running = Nothing, collected = BE.sequence [] }
+    BitWriter { running = Nothing, collected = BE.sequence [], offset = 0 }
 
 
 run : BitWriter -> Bytes
@@ -33,17 +34,31 @@ type BitWriter
                 { value : Int
                 , length : Int
                 }
+        , offset : Int
         , collected : BE.Encoder
         }
+
+
+getOffset : BitWriter -> Int
+getOffset (BitWriter { offset }) =
+    offset
 
 
 {-| If the given int is longer than 1 bit the behaviour is undefined
 -}
 bit : Int -> BitWriter -> BitWriter
-bit b (BitWriter { running, collected }) =
+bit b (BitWriter { running, collected, offset }) =
+    let
+        newOffset =
+            offset + 1
+    in
     case running of
         Nothing ->
-            BitWriter { running = Just { value = b, length = 1 }, collected = collected }
+            BitWriter
+                { running = Just { value = b, length = 1 }
+                , collected = collected
+                , offset = newOffset
+                }
 
         Just { value, length } ->
             let
@@ -51,10 +66,18 @@ bit b (BitWriter { running, collected }) =
                     Bitwise.or (Bitwise.shiftLeftBy length b) value
             in
             if length == 7 then
-                BitWriter { running = Nothing, collected = BE.sequence [ collected, BE.unsignedInt8 newValue ] }
+                BitWriter
+                    { running = Nothing
+                    , collected = BE.sequence [ collected, BE.unsignedInt8 newValue ]
+                    , offset = newOffset
+                    }
 
             else
-                BitWriter { running = Just { value = newValue, length = length + 1 }, collected = collected }
+                BitWriter
+                    { running = Just { value = newValue, length = length + 1 }
+                    , collected = collected
+                    , offset = newOffset
+                    }
 
 
 

@@ -1,10 +1,17 @@
-module Urbit exposing (Noun(..), cue, jam, mat, rub)
+module Urbit exposing
+    ( Noun(..)
+    , cue
+    , jam
+    , mat
+    , rub
+    )
 
 import BitParser as BP exposing (BitParser)
 import BitWriter as BW exposing (BitWriter)
 import Bitwise
 import Bytes exposing (Bytes)
 import Bytes.Extra as Bytes
+import Dict exposing (Dict)
 import List.Extra as List
 
 
@@ -13,8 +20,22 @@ type Noun
     | Atom Bytes
 
 
-jam : Noun -> BitWriter -> BitWriter
-jam noun writer =
+type alias Atom =
+    Bytes
+
+
+jam : Noun -> Bytes
+jam n =
+    BW.run (jamWriter n BW.empty)
+
+
+
+-- Does not use references because it is complex to implement in Elm and would probably lead
+-- to poor performance
+
+
+jamWriter : Noun -> BitWriter -> BitWriter
+jamWriter noun writer =
     case noun of
         Atom atom ->
             writer
@@ -25,37 +46,67 @@ jam noun writer =
             writer
                 |> BW.bit 1
                 |> BW.bit 0
-                |> jam a
-                |> jam b
+                |> jamWriter a
+                |> jamWriter b
 
 
-cue : BitParser Noun
+cue : Bytes -> Maybe Noun
 cue =
-    BP.bit
+    BP.run (cueParser Dict.empty) >> Maybe.map Tuple.second
+
+
+cueParser : Dict Int Noun -> BitParser ( Dict Int Noun, Noun )
+cueParser refs =
+    BP.getOffset
         |> BP.andThen
-            (\isAtom ->
-                if isAtom == 0 then
-                    rub |> BP.map Atom
+            (\offset ->
+                BP.bit
+                    |> BP.andThen
+                        (\isAtom ->
+                            if isAtom == 0 then
+                                rub |> BP.map (\a -> ( Dict.insert offset (Atom a) refs, Atom a ))
 
-                else
-                    BP.bit
-                        |> BP.andThen
-                            (\isRef ->
-                                if isRef == 0 then
-                                    cue
-                                        |> BP.andThen
-                                            (\a ->
-                                                cue
+                            else
+                                BP.bit
+                                    |> BP.andThen
+                                        (\isRef ->
+                                            if isRef == 0 then
+                                                cueParser refs
                                                     |> BP.andThen
-                                                        (\b ->
-                                                            Cell ( a, b )
-                                                                |> BP.succeed
+                                                        (\( refs_, a ) ->
+                                                            cueParser refs_
+                                                                |> BP.andThen
+                                                                    (\( refs__, b ) ->
+                                                                        let
+                                                                            c =
+                                                                                Cell ( a, b )
+                                                                        in
+                                                                        ( Dict.insert offset c refs__, c )
+                                                                            |> BP.succeed
+                                                                    )
                                                         )
-                                            )
 
-                                else
-                                    BP.fail
-                            )
+                                            else
+                                                rub
+                                                    |> BP.andThen
+                                                        (\ref ->
+                                                            case
+                                                                Dict.get
+                                                                    (Bytes.toByteValues ref
+                                                                        |> List.foldr
+                                                                            (\b acc -> Bitwise.shiftLeftBy 8 acc |> Bitwise.or b)
+                                                                            0
+                                                                    )
+                                                                    refs
+                                                            of
+                                                                Just n ->
+                                                                    BP.succeed ( refs, n )
+
+                                                                _ ->
+                                                                    BP.fail
+                                                        )
+                                        )
+                        )
             )
 
 

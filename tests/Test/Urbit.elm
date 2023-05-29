@@ -23,8 +23,47 @@ tests =
         , fuzz (noun ())
             "jam <-> cue"
             (\n ->
-                maybeNounEq (Just n) (BitWriter.run (jam n BitWriter.empty) |> BitParser.run cue)
+                maybeNounEq (Just n) (jam n |> cue)
             )
+        , describe "cue"
+            [ test "[1 2]"
+                (\() ->
+                    maybeNounEq
+                        (cue (Bytes.fromByteValues [ 0x31, 0x12 ]))
+                        (Cell ( Atom (Bytes.fromByteValues [ 1 ]), Atom (Bytes.fromByteValues [ 2 ]) ) |> Just)
+                )
+            , test "[1 1]"
+                (\() ->
+                    maybeNounEq
+                        (cue (Bytes.fromByteValues [ 0x31, 0x03 ]))
+                        (Cell ( Atom (Bytes.fromByteValues [ 1 ]), Atom (Bytes.fromByteValues [ 1 ]) ) |> Just)
+                )
+            , test "[[1 1] [1 1]]"
+                (\() ->
+                    maybeNounEq
+                        (cue (Bytes.fromByteValues [ 0xC5, 0x3C, 0x09 ]))
+                        (let
+                            oneOne =
+                                Cell
+                                    ( Atom (Bytes.fromByteValues [ 1 ])
+                                    , Atom (Bytes.fromByteValues [ 1 ])
+                                    )
+                         in
+                         Cell ( oneOne, oneOne ) |> Just
+                        )
+                )
+            , test "[0x1234.5678 0x1234.5678]"
+                (\() ->
+                    maybeNounEq
+                        (cue (Bytes.fromByteValues [ 0x01, 0x1B, 0xCF, 0x8A, 0x46, 0x4E, 0x02 ]))
+                        (let
+                            bigNum =
+                                Atom (Bytes.fromByteValues [ 0x78, 0x56, 0x34, 0x12 ])
+                         in
+                         Cell ( bigNum, bigNum ) |> Just
+                        )
+                )
+            ]
         ]
 
 
