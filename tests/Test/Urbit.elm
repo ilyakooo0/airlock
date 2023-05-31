@@ -93,6 +93,52 @@ tests =
                             (Bytes.fromByteValues [ 0x01, 0x1F, 0x00, 0x00, 0x20, 0x08, 0x7C, 0x00, 0x00, 0x98, 0x20 ])
                         )
                 )
+            , test "[8 'hi']"
+                (\() ->
+                    Expect.equal
+                        (Just ( 8, "hi" ))
+                        (D.runBytes
+                            (D.cell D.int D.cord |> D.map Tuple.pair)
+                            (Bytes.fromByteValues [ 0x41, 0x10, 0x3C, 0x5A, 0x1A ])
+                        )
+                )
+            , test "[8 \"hi\"]"
+                (\() ->
+                    Expect.equal
+                        (Just ( 8, "hi" ))
+                        (D.runBytes
+                            (D.cell D.int D.tape |> D.map Tuple.pair)
+                            (Bytes.fromByteValues [ 0x41, 0x30, 0x38, 0x3A, 0x78, 0x5A ])
+                        )
+                )
+            , describe "sum types"
+                [ test "[%tape \"hi\"]"
+                    (\() ->
+                        Expect.equal
+                            (Just "hi")
+                            (D.runBytes
+                                (D.oneOf
+                                    [ D.cell (D.const D.cord "tape") D.tape
+                                    , D.cell (D.const D.cord "cord") D.cord
+                                    ]
+                                )
+                                (Bytes.fromByteValues [ 0x01, 0x9F, 0x2E, 0x0C, 0xAE, 0x1C, 0x1C, 0x1D, 0x3C, 0x2D ])
+                            )
+                    )
+                , test "[%cord 'hi']"
+                    (\() ->
+                        Expect.equal
+                            (Just "hi")
+                            (D.runBytes
+                                (D.oneOf
+                                    [ D.cell (D.const D.cord "tape") D.tape
+                                    , D.cell (D.const D.cord "cord") D.cord
+                                    ]
+                                )
+                                (Bytes.fromByteValues [ 0x01, 0x7F, 0xEC, 0x4D, 0x8E, 0x0C, 0x1E, 0x2D, 0x0D ])
+                            )
+                    )
+                ]
             ]
         ]
 

@@ -1,17 +1,21 @@
 module Urbit.Deconstructor exposing
     ( Deconstructor
     , alt
+    , bytes
     , cell
+    , const
+    , cord
     , float32
     , float64
     , int
     , list
     , llec
     , map
+    , oneOf
     , run
     , runBytes
     , sig
-    , string
+    , tape
     , tar
     )
 
@@ -38,8 +42,25 @@ runBytes (Deconstructor f) bs =
             (\noun -> f noun identity)
 
 
-string : Deconstructor (String -> a) a
-string =
+const : Deconstructor (a -> a) a -> a -> Deconstructor c c
+const (Deconstructor f) value =
+    Deconstructor
+        (\noun c ->
+            case f noun identity of
+                Just a ->
+                    if a == value then
+                        Just c
+
+                    else
+                        Nothing
+
+                Nothing ->
+                    Nothing
+        )
+
+
+cord : Deconstructor (String -> a) a
+cord =
     Deconstructor
         (\x f ->
             case x of
@@ -50,6 +71,11 @@ string =
                 Cell _ ->
                     Nothing
         )
+
+
+tape : Deconstructor (String -> a) a
+tape =
+    list cord |> fmap String.concat
 
 
 int : Deconstructor (Int -> a) a
@@ -158,6 +184,16 @@ alt (Deconstructor f) (Deconstructor g) =
         )
 
 
+oneOf : List (Deconstructor a b) -> Deconstructor a b
+oneOf l =
+    case l of
+        [] ->
+            Deconstructor (\_ _ -> Nothing)
+
+        x :: xs ->
+            alt x (oneOf xs)
+
+
 tar : Deconstructor a a
 tar =
     Deconstructor (\_ a -> Just a)
@@ -192,3 +228,8 @@ cell (Deconstructor l) (Deconstructor r) =
 map : a -> Deconstructor a b -> Deconstructor (b -> c) c
 map a (Deconstructor f) =
     Deconstructor (\noun g -> f noun a |> Maybe.map g)
+
+
+fmap : (a -> b) -> Deconstructor (a -> c) c -> Deconstructor (b -> c) c
+fmap f (Deconstructor g) =
+    Deconstructor (\noun h -> g noun (f >> h))
