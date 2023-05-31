@@ -10,6 +10,7 @@ import List.Extra as List
 import Test exposing (..)
 import Test.Utils exposing (..)
 import Urbit exposing (..)
+import Urbit.Deconstructor as D
 
 
 tests : Test
@@ -61,6 +62,35 @@ tests =
                                 Atom (Bytes.fromByteValues [ 0x78, 0x56, 0x34, 0x12 ])
                          in
                          Cell ( bigNum, bigNum ) |> Just
+                        )
+                )
+            ]
+        , describe "Decon"
+            [ test "[1 2]"
+                (\() ->
+                    Expect.equal
+                        (Just ( 1, 2 ))
+                        (D.runBytes
+                            (D.cell D.int D.int |> D.map Tuple.pair)
+                            (Bytes.fromByteValues [ 0x31, 0x12 ])
+                        )
+                )
+            , test "[4 ~[1 2 3]]"
+                (\() ->
+                    Expect.equal
+                        (Just ( 4, [ 1, 2, 3 ] ))
+                        (D.runBytes
+                            (D.cell D.int (D.list D.int) |> D.map Tuple.pair)
+                            (Bytes.fromByteValues [ 0x61, 0xC6, 0x21, 0x43, 0x0B ])
+                        )
+                )
+            , test "[.8 .11]"
+                (\() ->
+                    Expect.equal
+                        (Just ( 8, 11 ))
+                        (D.runBytes
+                            (D.cell D.float32 D.float32 |> D.map Tuple.pair)
+                            (Bytes.fromByteValues [ 0x01, 0x1F, 0x00, 0x00, 0x20, 0x08, 0x7C, 0x00, 0x00, 0x98, 0x20 ])
                         )
                 )
             ]
