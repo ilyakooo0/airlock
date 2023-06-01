@@ -16,5 +16,8 @@ jobs:
       - name: Install Nix
         uses: cachix/install-nix-action@v21
 
+      - name: Install Elm
+        run: nix-env -iA elmPackages.elm -f '<nixpkgs>'
+        
       - name: Test
         run: ./dev/test.sh
