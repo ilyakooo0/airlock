@@ -139,6 +139,15 @@ tests =
                             )
                     )
                 ]
+            , test "[--8 -8]"
+                (\() ->
+                    Expect.equal
+                        (Just ( 8, -8 ))
+                        (D.runBytes
+                            (D.cell D.signedInt D.signedInt |> D.map Tuple.pair)
+                            (Bytes.fromByteValues [ 0xC1, 0x20, 0xE4, 0x01 ])
+                        )
+                )
             ]
         ]
 

@@ -15,6 +15,7 @@ module Urbit.Deconstructor exposing
     , run
     , runBytes
     , sig
+    , signedInt
     , tape
     , tar
     )
@@ -94,6 +95,19 @@ int =
                 Cell _ ->
                     Nothing
         )
+
+
+signedInt : Deconstructor (Int -> a) a
+signedInt =
+    int
+        |> fmap
+            (\i ->
+                if Bitwise.and 1 i == 1 then
+                    -(Bitwise.shiftRightBy 1 (1 + i))
+
+                else
+                    Bitwise.shiftRightBy 1 i
+            )
 
 
 float32 : Deconstructor (Float -> a) a
