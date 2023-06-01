@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v21
+        with:
+          nix_path: nixpkgs=channel:nixpkgs-unstable
+      
+      - name: Install Elm
+        run: nix-env -iA elmPackages.elm -f '<nixpkgs>'
+        
+      - name: Test
+        run: ./dev/test.sh
