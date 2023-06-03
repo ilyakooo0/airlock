@@ -10,6 +10,7 @@ import List.Extra as List
 import Test exposing (..)
 import Test.Utils exposing (..)
 import Urbit exposing (..)
+import Urbit.Constructor as C
 import Urbit.Deconstructor as D
 
 
@@ -146,6 +147,60 @@ tests =
                         (D.runBytes
                             (D.cell D.signedInt D.signedInt |> D.map Tuple.pair)
                             (Bytes.fromByteValues [ 0xC1, 0x20, 0xE4, 0x01 ])
+                        )
+                )
+            , test "65.600"
+                (\() ->
+                    Expect.equal
+                        (Just 65600)
+                        (D.runBytes
+                            D.int
+                            (Bytes.fromByteValues [ 0xC0, 0x00, 0x02, 0x08 ])
+                        )
+                )
+            ]
+        , describe "Constructor <-> Deconstructor"
+            [ Test.fuzz
+                (Fuzz.triple Fuzz.niceFloat Fuzz.int (Fuzz.intAtLeast 0))
+                "[@rd @s @u]"
+                (\( f, i, ui ) ->
+                    Expect.equal (Just ( f, i, ui ))
+                        (D.run
+                            (D.cell D.float64 (D.cell D.signedInt D.int) |> D.map (\a b c -> ( a, b, c )))
+                            (C.cell (C.float64 f) (C.cell (C.signedInt i) (C.int ui)))
+                        )
+                )
+            , Test.fuzz
+                (Fuzz.list Fuzz.int)
+                "~[@s]"
+                (\x ->
+                    Expect.equal
+                        (Just x)
+                        (D.run
+                            (D.list D.signedInt)
+                            (C.listOf C.signedInt x)
+                        )
+                )
+            , Test.fuzz
+                Fuzz.string
+                "cord"
+                (\x ->
+                    Expect.equal
+                        (Just x)
+                        (D.run
+                            D.cord
+                            (C.cord x)
+                        )
+                )
+            , Test.fuzz
+                Fuzz.string
+                "tape"
+                (\x ->
+                    Expect.equal
+                        (Just x)
+                        (D.run
+                            D.tape
+                            (C.tape x)
                         )
                 )
             ]
