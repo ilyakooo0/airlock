@@ -23,6 +23,7 @@ module Urbit.Deconstructor exposing
 import Bitwise
 import Bytes exposing (Bytes, Endianness(..))
 import Bytes.Decode as BD
+import Bytes.Encode as BE
 import Bytes.Extra
 import Urbit exposing (..)
 
@@ -85,12 +86,23 @@ int =
         (\x f ->
             case x of
                 Atom bs ->
-                    Bytes.Extra.toByteValues bs
-                        |> List.foldr
-                            (\b acc -> Bitwise.shiftLeftBy 8 acc |> Bitwise.or b)
-                            0
-                        |> f
-                        |> Just
+                    (case Bytes.width bs of
+                        1 ->
+                            BD.decode BD.unsignedInt8 bs
+
+                        2 ->
+                            BD.decode (BD.unsignedInt16 LE) bs
+
+                        3 ->
+                            BD.decode (BD.unsignedInt32 LE) (BE.encode (BE.sequence [ BE.bytes bs, BE.unsignedInt8 0 ]))
+
+                        4 ->
+                            BD.decode (BD.unsignedInt32 LE) bs
+
+                        _ ->
+                            Nothing
+                    )
+                        |> Maybe.map f
 
                 Cell _ ->
                     Nothing
