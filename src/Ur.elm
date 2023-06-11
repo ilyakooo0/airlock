@@ -1,7 +1,8 @@
-module Urbit exposing
+module Ur exposing
     ( Noun(..)
     , cue
     , jam
+    , logIn
     , mat
     , rub
     )
@@ -12,7 +13,24 @@ import Bitwise
 import Bytes exposing (Bytes)
 import Bytes.Extra as Bytes
 import Dict exposing (Dict)
+import Http
 import List.Extra as List
+
+
+logIn : String -> String -> Cmd (Result Http.Error ())
+logIn root password =
+    Http.riskyRequest
+        { url = root ++ "/~/login"
+        , method = "POST"
+        , headers = []
+        , timeout = Nothing
+        , tracker = Nothing
+        , body =
+            Http.stringBody
+                "application/x-www-form-urlencoded; charset=utf-8"
+                ("password=" ++ password)
+        , expect = Http.expectWhatever identity
+        }
 
 
 type Noun

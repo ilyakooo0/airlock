@@ -1,4 +1,4 @@
-module Urbit.Constructor exposing
+module Ur.Constructor exposing
     ( Constructor
     , cell
     , cord
@@ -14,7 +14,7 @@ module Urbit.Constructor exposing
 import Bitwise
 import Bytes exposing (Bytes, Endianness(..))
 import Bytes.Encode as BE
-import Urbit exposing (..)
+import Ur exposing (..)
 
 
 type alias Constructor a =

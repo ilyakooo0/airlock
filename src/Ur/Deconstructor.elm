@@ -1,4 +1,4 @@
-module Urbit.Deconstructor exposing
+module Ur.Deconstructor exposing
     ( Deconstructor
     , alt
     , bytes
@@ -25,7 +25,7 @@ import Bytes exposing (Bytes, Endianness(..))
 import Bytes.Decode as BD
 import Bytes.Encode as BE
 import Bytes.Extra
-import Urbit exposing (..)
+import Ur exposing (..)
 
 
 type Deconstructor a b
@@ -220,9 +220,9 @@ oneOf l =
             alt x (oneOf xs)
 
 
-tar : Deconstructor a a
+tar : Deconstructor (Noun -> a) a
 tar =
-    Deconstructor (\_ a -> Just a)
+    Deconstructor (\noun f -> Just (f noun))
 
 
 llec : Deconstructor a b -> Deconstructor b c -> Deconstructor a c

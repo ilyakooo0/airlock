@@ -1,0 +1,44 @@
+{
+    "type": "application",
+    "source-directories": [
+        "src",
+        "../src"
+    ],
+    "elm-version": "0.19.1",
+    "dependencies": {
+        "direct": {
+            "TSFoster/elm-bytes-extra": "1.3.0",
+            "chelovek0v/bbase64": "1.0.1",
+            "cmditch/elm-bigint": "2.0.1",
+            "elm/browser": "1.0.2",
+            "elm/bytes": "1.0.8",
+            "elm/core": "1.0.5",
+            "elm/html": "1.0.0",
+            "elm/http": "2.0.0",
+            "elm/json": "1.1.3",
+            "elm/parser": "1.1.0",
+            "elm/url": "1.0.0",
+            "elm-community/list-extra": "8.7.0",
+            "elm-community/maybe-extra": "5.3.0",
+            "figbus/elm-urbit-api": "4.0.1",
+            "jxxcarlson/hex": "4.0.0",
+            "ktonon/elm-word": "2.1.2",
+            "mdgriffith/elm-ui": "1.1.8",
+            "robinheghan/murmur3": "1.0.0"
+        },
+        "indirect": {
+            "AdrianRibao/elm-derberos-date": "1.2.3",
+            "bitsoflogic/elm-radixint": "2.0.0",
+            "elm/file": "1.0.5",
+            "elm/random": "1.0.0",
+            "elm/regex": "1.0.0",
+            "elm/time": "1.0.0",
+            "elm/virtual-dom": "1.0.3",
+            "rtfeldman/elm-hex": "1.0.0"
+        }
+    },
+    "test-dependencies": {
+        "direct": {},
+        "indirect": {}
+    }
+}

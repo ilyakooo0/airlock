@@ -9,9 +9,10 @@ import Fuzz exposing (Fuzzer)
 import List.Extra as List
 import Test exposing (..)
 import Test.Utils exposing (..)
-import Urbit exposing (..)
-import Urbit.Constructor as C
-import Urbit.Deconstructor as D
+import Ur exposing (..)
+import Ur.Constructor as C
+import Ur.Deconstructor as D
+import Ur.Uw
 
 
 tests : Test
@@ -204,6 +205,11 @@ tests =
                         )
                 )
             ]
+        , Test.describe "Ur.Uw"
+            [ Test.fuzz atom
+                "encode <-> decode"
+                (\bs -> bytesEq bs (bs |> Ur.Uw.encode |> Ur.Uw.decode |> stripTrailingZeros))
+            ]
         ]
 
 
@@ -234,7 +240,12 @@ atom : Fuzzer Bytes
 atom =
     bytes
         |> Fuzz.map
-            (\a -> a |> Bytes.toByteValues |> List.dropWhileRight (\x -> x == 0) |> Bytes.fromByteValues)
+            stripTrailingZeros
+
+
+stripTrailingZeros : Bytes -> Bytes
+stripTrailingZeros =
+    Bytes.toByteValues >> List.dropWhileRight (\x -> x == 0) >> Bytes.fromByteValues
 
 
 noun : () -> Fuzzer Noun
