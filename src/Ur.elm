@@ -1,5 +1,9 @@
 module Ur exposing
-    ( Noun(..)
+    ( Agent
+    , Atom
+    , Mark
+    , Noun(..)
+    , Path
     , cue
     , jam
     , logIn
@@ -15,6 +19,22 @@ import Bytes.Extra as Bytes
 import Dict exposing (Dict)
 import Http
 import List.Extra as List
+
+
+{-| An Urbit agent (app) name like `journal` or 'groups'.
+-}
+type alias Agent =
+    String
+
+
+{-| An Urbit subscription path.
+-}
+type alias Path =
+    List String
+
+
+type alias Mark =
+    String
 
 
 logIn : String -> String -> Cmd (Result Http.Error ())
@@ -35,7 +55,7 @@ logIn root password =
 
 type Noun
     = Cell ( Noun, Noun )
-    | Atom Bytes
+    | Atom Atom
 
 
 type alias Atom =

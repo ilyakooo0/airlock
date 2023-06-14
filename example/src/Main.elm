@@ -2,10 +2,9 @@ port module Main exposing (main)
 
 import Browser exposing (Document)
 import Element exposing (..)
-import Html exposing (Html)
 import Json.Decode as JD
-import Ur.Deconstructor as D
 import Ur
+import Ur.Deconstructor as D
 import Ur.Run
 import Ur.Sub
 
@@ -23,12 +22,14 @@ main =
         , view = view
         , subscriptions = always Sub.none
         , createEventSource = createEventSource
-        , urbitSubscriptions = \_ -> Ur.Sub.subscribe 
-            {
-                ship = "~zod", app = "journal",
-                path = ["updates"]
-                , deconstructor = D.tar |> D.map (always Noop)
-            }
+        , urbitSubscriptions =
+            \_ ->
+                Ur.Sub.subscribe
+                    { ship = "~zod"
+                    , app = "journal"
+                    , path = [ "updates" ]
+                    , deconstructor = D.tar |> D.map (always Noop)
+                    }
         , onEventSourceMsg = onEventSourceMessage
         , onUrlChange = \_ -> Noop
         , onUrlRequest = \_ -> Noop

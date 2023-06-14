@@ -4,14 +4,11 @@ import Browser exposing (Document, UrlRequest)
 import Browser.Navigation as Nav
 import Dict exposing (Dict)
 import Html
-import Http
 import Json.Decode as JD
-import Maybe.Extra
 import Task
-import Ur exposing (Noun)
 import Ur.Constructor as C
 import Ur.Deconstructor as D
-import Ur.Phonemic
+import Ur.Requests exposing (..)
 import Ur.Sub
 import Ur.Uw
 import Url exposing (Url)
@@ -35,86 +32,19 @@ type alias Model app msg =
     , subscriptionIntMapping : Dict Int ( String, String, List String )
     , app : app
     , connected : Bool
-    , messageCounter : Int
+    , eventId : Int
     , flags : Flags
-    , requestsToRetry : List Noun
+    , requestsToRetry : List UrbitRequest
     }
 
 
 type Msg msg
     = AppMsg msg
     | EventSourceMsg JD.Value
-      -- | ActivateSubscription ( String, String, List String ) Int
-    | FailedSubscribe Noun
-    | FailedUnsubscribe Noun
+    | FailedRequest (List UrbitRequest)
     | Noop
     | OpenConnection
     | NeedsActivation
-
-
-type UrbitAction
-    = Subscribe ( String, String, List String )
-    | Unsubscribe Int
-    | Poke { ship : String, agent : String, mark : String, noun : Noun }
-
-
-renderUrbitActions : Int -> List ( UrbitAction, a ) -> ( Int, Maybe Noun, List ( Int, a ) )
-renderUrbitActions idCounter acts =
-    let
-        ( newIdCounter, x ) =
-            renderUrbitActions_ idCounter acts
-    in
-    ( newIdCounter
-    , if List.isEmpty x then
-        Nothing
-
-      else
-        x |> List.map Tuple.first |> Maybe.Extra.values |> C.listOf identity |> Just
-    , x |> List.map Tuple.second
-    )
-
-
-renderUrbitActions_ : Int -> List ( UrbitAction, a ) -> ( Int, List ( Maybe Noun, ( Int, a ) ) )
-renderUrbitActions_ idCounter acts =
-    case acts of
-        [] ->
-            ( idCounter, [] )
-
-        ( act, a ) :: rest ->
-            renderUrbitActions_ (idCounter + 1) rest
-                |> Tuple.mapSecond
-                    (\xs ->
-                        ( case act of
-                            Subscribe ( ship, app, path ) ->
-                                Ur.Phonemic.p ship
-                                    |> Maybe.map
-                                        (\shipAtom ->
-                                            C.cell (C.cord "subscribe") <|
-                                                C.cell (C.int idCounter) <|
-                                                    C.cell (Ur.Atom shipAtom) <|
-                                                        C.cell (C.cord app) (C.listOf C.cord path)
-                                        )
-
-                            Unsubscribe subId ->
-                                Just <|
-                                    C.cell (C.cord "usubscribe") <|
-                                        C.cell (C.int idCounter) (C.int subId)
-
-                            Poke { ship, agent, mark, noun } ->
-                                Ur.Phonemic.p ship
-                                    |> Maybe.map
-                                        (\shipAtom ->
-                                            C.cell (C.cord "poke") <|
-                                                C.cell (C.int idCounter) <|
-                                                    C.cell (Ur.Atom shipAtom) <|
-                                                        C.cell (C.cord agent) <|
-                                                            C.cell (C.cord mark) <|
-                                                                noun
-                                        )
-                        , ( idCounter, a )
-                        )
-                            :: xs
-                    )
 
 
 application :
@@ -141,20 +71,12 @@ application inp =
                 let
                     ( app, appCmds ) =
                         init u key
-
-                    --     urbitSubs_ =
-                    --         urbitSubscriptions app |> (\(Ur.Sub.Sub x) -> x)
-                    --     urbitSubs =
-                    --         urbitSubs_
-                    --             |> Dict.map (\_ deconstructor -> { active = Nothing, deconstructor = deconstructor })
-                    --     ( messageCounter, actions ) =
-                    --         subscriptionActions Dict.empty urbitSubs |> renderUrbitActions 0
                 in
                 ( { subscriptions = Dict.empty
                   , subscriptionIntMapping = Dict.empty
                   , app = app
                   , connected = False
-                  , messageCounter = 0
+                  , eventId = 0
                   , flags = flags
                   , requestsToRetry = []
                   }
@@ -174,16 +96,6 @@ application inp =
         , onUrlRequest = \req -> onUrlRequest req |> AppMsg
         , onUrlChange = \url -> onUrlChange url |> AppMsg
         }
-
-
-result : (a -> c) -> (b -> c) -> Result a b -> c
-result f g res =
-    case res of
-        Ok b ->
-            g b
-
-        Err a ->
-            f a
 
 
 update :
@@ -214,23 +126,23 @@ update inp msg model =
                     urbitSubs_
                         |> Dict.map (\_ deconstructor -> { deconstructor = deconstructor })
 
-                ( messageCounter, newSubscriptionActions, intMapping ) =
+                ( eventId, newSubscriptionActions ) =
                     Dict.diff urbitSubs model.subscriptions
                         |> Dict.toList
                         |> List.map (\( address, _ ) -> ( Subscribe address, address ))
-                        |> renderUrbitActions model.messageCounter
+                        |> tag model.eventId
 
                 removedSubscriptions =
                     Dict.diff model.subscriptions urbitSubs
 
-                ( messageCounter_, removedSubscriptionActions, _ ) =
+                ( eventId_, removedSubscriptionActions ) =
                     removedSubscriptions
                         |> Dict.toList
-                        |> List.map (\( _, { number } ) -> ( Unsubscribe number, () ))
-                        |> renderUrbitActions messageCounter
+                        |> List.map (\( _, { number } ) -> Unsubscribe number)
+                        |> tag eventId
 
-                foo =
-                    intMapping |> List.map (\( a, b ) -> ( b, a )) |> Dict.fromList
+                keyToNumber =
+                    newSubscriptionActions |> List.map (\( a, ( _, b ) ) -> ( b, a )) |> Dict.fromList
 
                 newSubscriptions =
                     Dict.merge
@@ -242,13 +154,13 @@ update inp msg model =
                                 }
                         )
                         (\_ _ x -> x)
-                        foo
+                        keyToNumber
                         urbitSubs
                         Dict.empty
             in
             ( { model
                 | app = appModel
-                , messageCounter = messageCounter_
+                , eventId = eventId_
                 , subscriptions =
                     Dict.diff model.subscriptions removedSubscriptions
                         |> Dict.union newSubscriptions
@@ -263,97 +175,97 @@ update inp msg model =
               }
             , Cmd.batch
                 [ appCmds |> Cmd.map AppMsg
-                , removedSubscriptionActions
-                    |> Maybe.map
-                        (\noun ->
-                            sendUr
-                                { noun = noun
-                                , url = url
-                                , success = Noop
-                                , error = FailedUnsubscribe noun
-                                }
-                        )
-                    |> Maybe.withDefault Cmd.none
-                , newSubscriptionActions
-                    |> Maybe.map
-                        (\noun ->
-                            sendUr
-                                { noun = noun
-                                , url = url
-                                , success = Noop
-                                , error = FailedSubscribe noun
-                                }
-                        )
-                    |> Maybe.withDefault Cmd.none
+                , let
+                    requests =
+                        removedSubscriptionActions
+                            ++ (newSubscriptionActions |> List.map (\( id, ( req, _ ) ) -> ( id, req )))
+                  in
+                  send
+                    { requests = requests
+                    , url = url
+                    , error = requests |> List.map (\( _, x ) -> x) |> FailedRequest
+                    , success = Noop
+                    }
                 ]
             )
 
         EventSourceMsg value ->
-            let
-                model_ =
-                    model
-            in
             case JD.decodeValue (JD.field "message" JD.string) value of
                 Ok string ->
                     case D.runBytes (D.cell D.int (D.cell D.cord D.tar) |> D.map (\a b c -> ( a, b, c ) |> Debug.log "event")) (Ur.Uw.decode string) of
-                        Just ( _, "watch-ack", _ ) ->
-                            -- Not sure what to do. Assume things are fine.
-                            ( model_, Cmd.none )
+                        Just ( messageId, messageType, rest ) ->
+                            let
+                                ( eventId, ackReqs ) =
+                                    tag model.eventId [ Ack messageId ]
 
-                        Just ( _, "poke-ack", _ ) ->
-                            -- Not sure what to do.
-                            ( model_, Cmd.none )
+                                ackCmd =
+                                    send
+                                        { requests = ackReqs
+                                        , url = url
+                                        , success = Noop
+                                        , error = ackReqs |> List.map (\( _, x ) -> x) |> FailedRequest
+                                        }
 
-                        Just ( subscriptionNumber, "fact", rest ) ->
-                            case
-                                Dict.get subscriptionNumber model.subscriptionIntMapping |> Maybe.andThen (\key -> Dict.get key model.subscriptions)
-                            of
-                                Just { deconstructor } ->
-                                    case D.run (D.cell D.tar deconstructor |> D.map (\_ subMsg -> subMsg)) rest of
-                                        Just subMsg ->
-                                            ( model_, pureCmd (AppMsg subMsg) )
+                                model_ =
+                                    { model | eventId = eventId }
+                            in
+                            case messageType of
+                                "watch-ack" ->
+                                    -- Not sure what to do. Assume things are fine.
+                                    ( model_, ackCmd )
 
-                                        -- Got gargbage
+                                "poke-ack" ->
+                                    -- Not sure what to do.
+                                    ( model_, ackCmd )
+
+                                "fact" ->
+                                    case
+                                        Dict.get messageId model.subscriptionIntMapping |> Maybe.andThen (\key -> Dict.get key model.subscriptions)
+                                    of
+                                        Just { deconstructor } ->
+                                            case D.run (D.cell D.tar deconstructor |> D.map (\_ subMsg -> subMsg)) rest of
+                                                Just subMsg ->
+                                                    ( model_, pureCmd (AppMsg subMsg) )
+
+                                                -- Got gargbage
+                                                Nothing ->
+                                                    ( model_, ackCmd )
+
+                                        -- Got a fact for a subscription we do not hold
                                         Nothing ->
-                                            ( model_, Cmd.none )
+                                            ( model_, ackCmd )
 
-                                -- Got a fact for a subscription we do not hold
-                                Nothing ->
-                                    ( model_, Cmd.none )
+                                _ ->
+                                    ( model_, ackCmd )
 
                         -- got something we don't expect
-                        _ ->
-                            ( model_, Cmd.none )
+                        Nothing ->
+                            ( model, Cmd.none )
 
                 Err _ ->
                     case JD.decodeValue (JD.field "error" JD.value) value of
                         Ok _ ->
-                            ( { model_ | connected = False }, Cmd.none )
+                            ( { model | connected = False }, Cmd.none )
 
                         Err _ ->
                             -- we got garbage
-                            ( model_, Cmd.none )
+                            ( model, Cmd.none )
 
         NeedsActivation ->
             let
-                ( newMessageCounter, nouns, _ ) =
-                    [ ( Poke { ship = "~zod", agent = "hood", mark = "helm-hi", noun = C.cord "Opening airlock!" }, () ) ]
-                        |> renderUrbitActions model.messageCounter
+                ( eventId, reqs ) =
+                    [ Poke { ship = "~zod", agent = "hood", mark = "helm-hi", noun = C.cord "Opening airlock!" } ]
+                        |> tag model.eventId
             in
-            ( { model | messageCounter = newMessageCounter }
-            , nouns
-                |> Maybe.map (\noun -> sendUr { url = url, noun = noun, success = OpenConnection, error = NeedsActivation })
-                |> Maybe.withDefault Cmd.none
+            ( { model | eventId = eventId }
+            , send { url = url, requests = reqs, success = OpenConnection, error = NeedsActivation }
             )
 
         Noop ->
             ( model, Cmd.none )
 
-        FailedSubscribe noun ->
-            ( { model | requestsToRetry = noun :: model.requestsToRetry }, Cmd.none )
-
-        FailedUnsubscribe noun ->
-            ( { model | requestsToRetry = noun :: model.requestsToRetry }, Cmd.none )
+        FailedRequest reqs ->
+            ( { model | requestsToRetry = reqs ++ model.requestsToRetry }, Cmd.none )
 
         OpenConnection ->
             ( { model | connected = True }, inp.createEventSource url )
@@ -362,16 +274,3 @@ update inp msg model =
 pureCmd : msg -> Cmd msg
 pureCmd msg =
     Task.succeed msg |> Task.perform identity
-
-
-sendUr : { url : String, error : c, success : c, noun : Noun } -> Cmd c
-sendUr { url, error, success, noun } =
-    Http.riskyRequest
-        { method = "PUT"
-        , headers = []
-        , url = url
-        , body = Ur.jam noun |> Ur.Uw.encode |> Http.stringBody "application/x-urb-jam"
-        , expect = Http.expectWhatever (result (\_ -> error) (always success))
-        , timeout = Nothing
-        , tracker = Nothing
-        }

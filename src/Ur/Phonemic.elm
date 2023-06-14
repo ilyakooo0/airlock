@@ -1,14 +1,26 @@
-module Ur.Phonemic exposing (..)
+module Ur.Phonemic exposing (Ship, fromString)
 
 import BigInt exposing (toHexString)
-import Bytes exposing (Bytes)
+import Bytes.Extra
 import Hex.Convert as Hex
+import Ur exposing (Atom, Noun(..))
 import Urbit.Encoding.Atom exposing (toBigInt)
 import Urbit.Encoding.Phonemic exposing (..)
 
 
-p : String -> Maybe Bytes
-p s =
+{-| A ship name like `~zod` or `~racfer-hattes`.
+
+Also know as `@p`.
+
+-}
+type alias Ship =
+    String
+
+
+{-| Converts a string like '~zod' into an Atom.
+-}
+fromString : Ship -> Atom
+fromString s =
     case fromPatp s of
         Ok atom ->
             let
@@ -22,7 +34,7 @@ p s =
                     else
                         "0" ++ hexString
             in
-            Hex.toBytes paddedHexString
+            Hex.toBytes paddedHexString |> Maybe.withDefault Bytes.Extra.empty
 
         Err _ ->
-            Nothing
+            Bytes.Extra.empty
