@@ -6,6 +6,7 @@ import Bytes exposing (Bytes)
 import Bytes.Extra as Bytes
 import Expect exposing (Expectation)
 import Fuzz exposing (Fuzzer)
+import Int64 exposing (Int64)
 import List.Extra as List
 import Test exposing (..)
 import Test.Utils exposing (..)
@@ -75,6 +76,16 @@ tests =
                         (D.runBytes
                             (D.cell D.int D.int |> D.map Tuple.pair)
                             (Bytes.fromByteValues [ 0x31, 0x12 ])
+                        )
+                )
+            , test "1.686.761.906.334"
+                (\() ->
+                    Expect.equal
+                        (Just "1686761906334")
+                        (D.runBytes
+                            D.int64
+                            (Bytes.fromByteValues [ 0x80, 0xC9, 0x13, 0x04, 0x5B, 0x17, 0x31 ])
+                            |> Maybe.map Int64.toUnsignedString
                         )
                 )
             , test "[4 ~[1 2 3]]"
@@ -204,6 +215,7 @@ tests =
                             (C.tape x)
                         )
                 )
+            , Test.fuzz int64 "int64" (\x -> Expect.equal (Just x) (D.run D.int64 (C.int64 x)))
             ]
         , Test.describe "Ur.Uw"
             [ Test.fuzz atom
@@ -254,3 +266,8 @@ noun () =
         [ ( 0.6, atom |> Fuzz.map Atom )
         , ( 0.4, Fuzz.map2 (\a b -> Cell ( a, b )) (Fuzz.lazy noun) (Fuzz.lazy noun) )
         ]
+
+
+int64 : Fuzzer Int64
+int64 =
+    Fuzz.int |> Fuzz.andThen (\a -> Fuzz.int |> Fuzz.map (Int64.fromInt32s a))

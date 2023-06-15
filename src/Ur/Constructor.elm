@@ -5,6 +5,7 @@ module Ur.Constructor exposing
     , float32
     , float64
     , int
+    , int64
     , listOf
     , sig
     , signedInt
@@ -14,6 +15,7 @@ module Ur.Constructor exposing
 import Bitwise
 import Bytes exposing (Bytes, Endianness(..))
 import Bytes.Encode as BE
+import Int64 exposing (Int64)
 import Ur exposing (..)
 
 
@@ -40,6 +42,11 @@ int i =
                 BE.unsignedInt32 LE i
             )
         )
+
+
+int64 : Int64 -> Noun
+int64 i =
+    Atom (BE.encode (Int64.encoder LE i))
 
 
 signedInt : Int -> Noun

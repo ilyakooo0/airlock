@@ -8,6 +8,7 @@ module Ur.Deconstructor exposing
     , float32
     , float64
     , int
+    , int64
     , list
     , llec
     , map
@@ -25,6 +26,7 @@ import Bytes exposing (Bytes, Endianness(..))
 import Bytes.Decode as BD
 import Bytes.Encode as BE
 import Bytes.Extra
+import Int64 exposing (Int64)
 import Ur exposing (..)
 
 
@@ -103,6 +105,31 @@ int =
                             Nothing
                     )
                         |> Maybe.map f
+
+                Cell _ ->
+                    Nothing
+        )
+
+
+int64 : Deconstructor (Int64 -> a) a
+int64 =
+    Deconstructor
+        (\x f ->
+            case x of
+                Atom bs ->
+                    let
+                        width =
+                            Bytes.width bs
+                    in
+                    if width > 8 then
+                        Nothing
+
+                    else
+                        BD.decode (Int64.decoder LE)
+                            (BE.encode
+                                (BE.sequence (BE.bytes bs :: List.repeat (8 - width) (BE.unsignedInt8 0)))
+                            )
+                            |> Maybe.map f
 
                 Cell _ ->
                     Nothing
