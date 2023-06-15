@@ -1,14 +1,15 @@
 module Ur.Deconstructor exposing
     ( Deconstructor
     , alt
+    , bigint
     , bytes
     , cell
     , const
     , cord
     , float32
     , float64
+    , ignore
     , int
-    , int64
     , list
     , llec
     , map
@@ -21,12 +22,13 @@ module Ur.Deconstructor exposing
     , tar
     )
 
+import BigInt exposing (BigInt)
+import BigInt.Bytes
 import Bitwise
 import Bytes exposing (Bytes, Endianness(..))
 import Bytes.Decode as BD
 import Bytes.Encode as BE
 import Bytes.Extra
-import Int64 exposing (Int64)
 import Ur exposing (..)
 
 
@@ -111,25 +113,13 @@ int =
         )
 
 
-int64 : Deconstructor (Int64 -> a) a
-int64 =
+bigint : Deconstructor (BigInt -> a) a
+bigint =
     Deconstructor
         (\x f ->
             case x of
                 Atom bs ->
-                    let
-                        width =
-                            Bytes.width bs
-                    in
-                    if width > 8 then
-                        Nothing
-
-                    else
-                        BD.decode (Int64.decoder LE)
-                            (BE.encode
-                                (BE.sequence (BE.bytes bs :: List.repeat (8 - width) (BE.unsignedInt8 0)))
-                            )
-                            |> Maybe.map f
+                    BigInt.Bytes.decode bs |> f |> Just
 
                 Cell _ ->
                     Nothing
@@ -250,6 +240,11 @@ oneOf l =
 tar : Deconstructor (Noun -> a) a
 tar =
     Deconstructor (\noun f -> Just (f noun))
+
+
+ignore : Deconstructor a a
+ignore =
+    Deconstructor (\_ f -> Just f)
 
 
 llec : Deconstructor a b -> Deconstructor b c -> Deconstructor a c

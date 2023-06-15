@@ -192,7 +192,13 @@ update inp msg model =
         EventSourceMsg value ->
             case JD.decodeValue (JD.field "message" JD.string) value of
                 Ok string ->
-                    case D.runBytes (D.cell D.int (D.cell D.cord D.tar) |> D.map (\a b c -> ( a, b, c ) |> Debug.log "event")) (Ur.Uw.decode string) of
+                    case
+                        D.runBytes
+                            (D.cell D.int (D.cell D.cord D.tar)
+                                |> D.map (\a b c -> ( a, b, c ))
+                            )
+                            (Ur.Uw.decode string)
+                    of
                         Just ( messageId, messageType, rest ) ->
                             let
                                 ( eventId, ackReqs ) =

@@ -1,12 +1,13 @@
 module Test.Urbit exposing (tests)
 
+import BigInt exposing (BigInt)
+import BigInt.Bytes
 import BitParser
 import BitWriter
 import Bytes exposing (Bytes)
 import Bytes.Extra as Bytes
 import Expect exposing (Expectation)
 import Fuzz exposing (Fuzzer)
-import Int64 exposing (Int64)
 import List.Extra as List
 import Test exposing (..)
 import Test.Utils exposing (..)
@@ -83,9 +84,9 @@ tests =
                     Expect.equal
                         (Just "1686761906334")
                         (D.runBytes
-                            D.int64
+                            D.bigint
                             (Bytes.fromByteValues [ 0x80, 0xC9, 0x13, 0x04, 0x5B, 0x17, 0x31 ])
-                            |> Maybe.map Int64.toUnsignedString
+                            |> Maybe.map BigInt.toString
                         )
                 )
             , test "[4 ~[1 2 3]]"
@@ -161,12 +162,21 @@ tests =
                             (Bytes.fromByteValues [ 0xC1, 0x20, 0xE4, 0x01 ])
                         )
                 )
-            , test "65.600"
+            , test "Int 65.600"
                 (\() ->
                     Expect.equal
                         (Just 65600)
                         (D.runBytes
                             D.int
+                            (Bytes.fromByteValues [ 0xC0, 0x00, 0x02, 0x08 ])
+                        )
+                )
+            , test "BigInt 65.600"
+                (\() ->
+                    Expect.equal
+                        (Just (BigInt.fromInt 65600))
+                        (D.runBytes
+                            D.bigint
                             (Bytes.fromByteValues [ 0xC0, 0x00, 0x02, 0x08 ])
                         )
                 )
@@ -215,7 +225,7 @@ tests =
                             (C.tape x)
                         )
                 )
-            , Test.fuzz int64 "int64" (\x -> Expect.equal (Just x) (D.run D.int64 (C.int64 x)))
+            , Test.fuzz bigint "bigint" (\x -> Expect.equal (Just x) (D.run D.bigint (C.bigint x)))
             ]
         , Test.describe "Ur.Uw"
             [ Test.fuzz atom
@@ -268,6 +278,6 @@ noun () =
         ]
 
 
-int64 : Fuzzer Int64
-int64 =
-    Fuzz.int |> Fuzz.andThen (\a -> Fuzz.int |> Fuzz.map (Int64.fromInt32s a))
+bigint : Fuzzer BigInt
+bigint =
+    bytes |> Fuzz.map BigInt.Bytes.decode

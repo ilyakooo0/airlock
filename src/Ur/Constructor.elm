@@ -1,21 +1,23 @@
 module Ur.Constructor exposing
     ( Constructor
+    , bigint
+    , bytes
     , cell
     , cord
     , float32
     , float64
     , int
-    , int64
     , listOf
     , sig
     , signedInt
     , tape
     )
 
+import BigInt exposing (BigInt)
+import BigInt.Bytes
 import Bitwise
 import Bytes exposing (Bytes, Endianness(..))
 import Bytes.Encode as BE
-import Int64 exposing (Int64)
 import Ur exposing (..)
 
 
@@ -44,9 +46,9 @@ int i =
         )
 
 
-int64 : Int64 -> Noun
-int64 i =
-    Atom (BE.encode (Int64.encoder LE i))
+bigint : BigInt -> Noun
+bigint x =
+    Atom (BigInt.Bytes.encode x)
 
 
 signedInt : Int -> Noun

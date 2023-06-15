@@ -1,6 +1,7 @@
 module Ur.Phonemic exposing (Ship, fromString)
 
 import BigInt exposing (toHexString)
+import BigInt.Bytes
 import Bytes.Extra
 import Hex.Convert as Hex
 import Ur exposing (Atom, Noun(..))
@@ -23,18 +24,7 @@ fromString : Ship -> Atom
 fromString s =
     case fromPatp s of
         Ok atom ->
-            let
-                hexString =
-                    toBigInt atom |> toHexString
-
-                paddedHexString =
-                    if modBy 2 (String.length hexString) == 0 then
-                        hexString
-
-                    else
-                        "0" ++ hexString
-            in
-            Hex.toBytes paddedHexString |> Maybe.withDefault Bytes.Extra.empty
+            toBigInt atom |> BigInt.Bytes.encode
 
         Err _ ->
             Bytes.Extra.empty
