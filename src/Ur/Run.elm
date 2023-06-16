@@ -14,6 +14,7 @@ import Ur.Constructor as C
 import Ur.Deconstructor as D
 import Ur.Requests exposing (..)
 import Ur.Sub
+import Ur.Sub.Internal
 import Ur.Uw
 import Url exposing (Url)
 
@@ -148,7 +149,7 @@ update inp msg model =
                     processCmd model.eventId appCmds
 
                 urbitSubs_ =
-                    inp.urbitSubscriptions model.app |> (\(Ur.Sub.Sub x) -> x)
+                    inp.urbitSubscriptions model.app |> (\(Ur.Sub.Internal.Sub x) -> x)
 
                 urbitSubs =
                     urbitSubs_

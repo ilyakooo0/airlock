@@ -1,9 +1,7 @@
 module Ur.Phonemic exposing (Ship, fromString)
 
-import BigInt exposing (toHexString)
 import BigInt.Bytes
 import Bytes.Extra
-import Hex.Convert as Hex
 import Ur exposing (Atom, Noun(..))
 import Urbit.Encoding.Atom exposing (toBigInt)
 import Urbit.Encoding.Phonemic exposing (..)

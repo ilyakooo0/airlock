@@ -162,13 +162,3 @@ toNoun eventId req =
 uncurry : (a -> b -> c) -> (( a, b ) -> c)
 uncurry f ( a, b ) =
     f a b
-
-
-result : (a -> c) -> (b -> c) -> Result a b -> c
-result f g res =
-    case res of
-        Ok b ->
-            g b
-
-        Err a ->
-            f a
