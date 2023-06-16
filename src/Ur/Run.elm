@@ -7,6 +7,7 @@ import Either exposing (Either(..))
 import Html
 import Json.Decode as JD
 import Task
+import Time
 import Ur.Cmd
 import Ur.Cmd.Internal
 import Ur.Constructor as C
@@ -48,6 +49,7 @@ type Msg msg
     | Noop
     | OpenConnection
     | NeedsActivation
+    | RetryRequests
 
 
 application :
@@ -110,6 +112,11 @@ application inp =
                 Sub.batch
                     [ subscriptions model.app |> Sub.map AppMsg
                     , onEventSourceMsg EventSourceMsg
+                    , if List.isEmpty model.requestsToRetry then
+                        Sub.none
+
+                      else
+                        Time.every 1000 (always RetryRequests)
                     ]
         , onUrlRequest = \req -> onUrlRequest req |> AppMsg
         , onUrlChange = \url -> onUrlChange url |> AppMsg
@@ -151,7 +158,7 @@ update inp msg model =
                     Dict.diff urbitSubs model.subscriptions
                         |> Dict.toList
                         |> List.map (\( address, _ ) -> ( Subscribe address, address ))
-                        |> tag model.eventId
+                        |> tag eventId
 
                 removedSubscriptions =
                     Dict.diff model.subscriptions urbitSubs
@@ -303,6 +310,20 @@ update inp msg model =
 
         OpenConnection ->
             ( { model | connected = True }, inp.createEventSource url )
+
+        RetryRequests ->
+            let
+                ( eventId, reqs ) =
+                    model.requestsToRetry |> tag model.eventId
+            in
+            ( { model | eventId = eventId, requestsToRetry = [] }
+            , send
+                { url = url
+                , error = FailedRequest model.requestsToRetry
+                , success = Noop
+                , requests = reqs
+                }
+            )
 
 
 processCmd : EventId -> Ur.Cmd.Cmd msg -> ( EventId, Cmd (Msg msg), List ( EventId, UrbitRequest ) )
