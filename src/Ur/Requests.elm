@@ -1,14 +1,19 @@
 module Ur.Requests exposing
     ( EventId
     , UrbitRequest(..)
+    , scry
+    , scryTask
     , send
+    , sendTask
     , tag
     , toNoun
     )
 
 import Http
+import Task exposing (Task)
 import Ur exposing (..)
 import Ur.Constructor as C
+import Ur.Deconstructor as D
 import Ur.Phonemic exposing (Ship)
 import Ur.Uw
 
@@ -30,8 +35,6 @@ tag eventId reqs =
             tag (eventId + 1) rest |> Tuple.mapSecond (\xs -> ( eventId, req ) :: xs)
 
 
-{-| `requests` should the result of calling `tag`
--}
 send :
     { url : String
     , error : msg
@@ -39,12 +42,25 @@ send :
     , requests : List ( EventId, UrbitRequest )
     }
     -> Cmd msg
-send { url, error, success, requests } =
+send inp =
+    sendTask inp |> Task.perform identity
+
+
+{-| `requests` should the result of calling `tag`
+-}
+sendTask :
+    { url : String
+    , error : msg
+    , success : msg
+    , requests : List ( EventId, UrbitRequest )
+    }
+    -> Task a msg
+sendTask { url, error, success, requests } =
     if List.isEmpty requests then
-        Cmd.none
+        Task.succeed success
 
     else
-        Http.riskyRequest
+        Http.riskyTask
             { method = "PUT"
             , headers = []
             , url = url
@@ -55,14 +71,67 @@ send { url, error, success, requests } =
                     |> Ur.jam
                     |> Ur.Uw.encode
                     |> Http.stringBody "application/x-urb-jam"
-            , expect = Http.expectWhatever (result (\_ -> error) (always success))
+            , resolver =
+                Http.bytesResolver
+                    (\resp ->
+                        case resp of
+                            Http.GoodStatus_ _ _ ->
+                                Ok success
+
+                            _ ->
+                                Ok error
+                    )
             , timeout = Nothing
-            , tracker = Nothing
             }
 
 
 type alias EventId =
     Int
+
+
+scry :
+    { url : String
+    , agent : Agent
+    , path : Path
+    , error : msg
+    , success : D.Deconstructor (msg -> msg) msg
+    }
+    -> Cmd msg
+scry args =
+    scryTask args |> Task.perform identity
+
+
+scryTask :
+    { url : String
+    , agent : Agent
+    , path : Path
+    , error : msg
+    , success : D.Deconstructor (msg -> msg) msg
+    }
+    -> Task a msg
+scryTask { url, agent, path, error, success } =
+    Http.riskyTask
+        { method = "GET"
+        , headers = []
+        , url = url ++ "/~/scry/" ++ agent ++ "/" ++ String.join "/" path ++ ".jam"
+        , body = Http.emptyBody
+        , resolver =
+            Http.bytesResolver
+                (\resp ->
+                    case resp of
+                        Http.GoodStatus_ _ bytes ->
+                            case D.runBytes success bytes of
+                                Just msg ->
+                                    Ok msg
+
+                                Nothing ->
+                                    Ok error
+
+                        _ ->
+                            Ok error
+                )
+        , timeout = Nothing
+        }
 
 
 toNoun : EventId -> UrbitRequest -> Noun

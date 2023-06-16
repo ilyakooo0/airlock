@@ -3,9 +3,12 @@ module Ur.Run exposing (Model, application)
 import Browser exposing (Document, UrlRequest)
 import Browser.Navigation as Nav
 import Dict exposing (Dict)
+import Either exposing (Either(..))
 import Html
 import Json.Decode as JD
 import Task
+import Ur.Cmd
+import Ur.Cmd.Internal
 import Ur.Constructor as C
 import Ur.Deconstructor as D
 import Ur.Requests exposing (..)
@@ -16,7 +19,7 @@ import Url exposing (Url)
 
 type alias SubDict msg =
     Dict
-        -- (ship, app, path)
+        -- (ship, agent, path)
         ( String, String, List String )
         { deconstructor : D.Deconstructor (msg -> msg) msg
         , number : Int
@@ -48,9 +51,9 @@ type Msg msg
 
 
 application :
-    { init : Url -> Nav.Key -> ( model, Cmd msg )
+    { init : Url -> Nav.Key -> ( model, Ur.Cmd.Cmd msg )
     , view : model -> Document msg
-    , update : msg -> model -> ( model, Cmd msg )
+    , update : msg -> model -> ( model, Ur.Cmd.Cmd msg )
     , subscriptions : model -> Sub msg
     , urbitSubscriptions : model -> Ur.Sub.Sub msg
     , onUrlRequest : UrlRequest -> msg
@@ -71,16 +74,31 @@ application inp =
                 let
                     ( app, appCmds ) =
                         init u key
+
+                    ( eventId, cmds, urReqs ) =
+                        processCmd 0 appCmds
+
+                    url =
+                        inp.urbitUrl app ++ "/~/channel/" ++ flags.uid
                 in
                 ( { subscriptions = Dict.empty
                   , subscriptionIntMapping = Dict.empty
                   , app = app
                   , connected = False
-                  , eventId = 0
+                  , eventId = eventId
                   , flags = flags
                   , requestsToRetry = []
                   }
-                , [ Cmd.map AppMsg appCmds, pureCmd NeedsActivation ] |> Cmd.batch
+                , [ cmds
+                  , pureCmd NeedsActivation
+                  , send
+                        { requests = urReqs
+                        , url = url
+                        , error = Noop
+                        , success = Noop
+                        }
+                  ]
+                    |> Cmd.batch
                 )
         , view =
             \model ->
@@ -100,7 +118,7 @@ application inp =
 
 update :
     { r
-        | update : msg -> app -> ( app, Cmd msg )
+        | update : msg -> app -> ( app, Ur.Cmd.Cmd msg )
         , createEventSource : String -> Cmd (Msg msg)
         , urbitUrl : app -> String
         , urbitSubscriptions : app -> Ur.Sub.Sub msg
@@ -119,6 +137,9 @@ update inp msg model =
                 ( appModel, appCmds ) =
                     inp.update msg_ model.app
 
+                ( eventId, cmds, urReqs ) =
+                    processCmd model.eventId appCmds
+
                 urbitSubs_ =
                     inp.urbitSubscriptions model.app |> (\(Ur.Sub.Sub x) -> x)
 
@@ -126,7 +147,7 @@ update inp msg model =
                     urbitSubs_
                         |> Dict.map (\_ deconstructor -> { deconstructor = deconstructor })
 
-                ( eventId, newSubscriptionActions ) =
+                ( eventId_, newSubscriptionActions ) =
                     Dict.diff urbitSubs model.subscriptions
                         |> Dict.toList
                         |> List.map (\( address, _ ) -> ( Subscribe address, address ))
@@ -135,11 +156,11 @@ update inp msg model =
                 removedSubscriptions =
                     Dict.diff model.subscriptions urbitSubs
 
-                ( eventId_, removedSubscriptionActions ) =
+                ( eventId__, removedSubscriptionActions ) =
                     removedSubscriptions
                         |> Dict.toList
                         |> List.map (\( _, { number } ) -> Unsubscribe number)
-                        |> tag eventId
+                        |> tag eventId_
 
                 keyToNumber =
                     newSubscriptionActions |> List.map (\( a, ( _, b ) ) -> ( b, a )) |> Dict.fromList
@@ -160,7 +181,7 @@ update inp msg model =
             in
             ( { model
                 | app = appModel
-                , eventId = eventId_
+                , eventId = eventId__
                 , subscriptions =
                     Dict.diff model.subscriptions removedSubscriptions
                         |> Dict.union newSubscriptions
@@ -174,7 +195,13 @@ update inp msg model =
                             )
               }
             , Cmd.batch
-                [ appCmds |> Cmd.map AppMsg
+                [ cmds
+                , Ur.Requests.send
+                    { url = url
+                    , error = Noop
+                    , success = Noop
+                    , requests = urReqs
+                    }
                 , let
                     requests =
                         removedSubscriptionActions
@@ -226,10 +253,11 @@ update inp msg model =
 
                                 "fact" ->
                                     case
-                                        Dict.get messageId model.subscriptionIntMapping |> Maybe.andThen (\key -> Dict.get key model.subscriptions)
+                                        Dict.get messageId model.subscriptionIntMapping
+                                            |> Maybe.andThen (\key -> Dict.get key model.subscriptions)
                                     of
                                         Just { deconstructor } ->
-                                            case D.run (D.cell D.tar deconstructor |> D.map (\_ subMsg -> subMsg)) rest of
+                                            case D.run (D.cell D.ignore (D.cell D.ignore deconstructor)) rest of
                                                 Just subMsg ->
                                                     ( model_, pureCmd (AppMsg subMsg) )
 
@@ -275,6 +303,28 @@ update inp msg model =
 
         OpenConnection ->
             ( { model | connected = True }, inp.createEventSource url )
+
+
+processCmd : EventId -> Ur.Cmd.Cmd msg -> ( EventId, Cmd (Msg msg), List ( EventId, UrbitRequest ) )
+processCmd eventId urCmds =
+    let
+        ( cmds, reqs ) =
+            urCmds
+                |> List.map
+                    (\x ->
+                        case x of
+                            Ur.Cmd.Internal.Cmd cmd ->
+                                cmd |> Cmd.map AppMsg |> Left
+
+                            Ur.Cmd.Internal.Poke p ->
+                                Ur.Requests.Poke p |> Right
+                    )
+                |> Either.partition
+
+        ( newEventId, urReqs ) =
+            reqs |> tag eventId
+    in
+    ( newEventId, Cmd.batch cmds, urReqs )
 
 
 pureCmd : msg -> Cmd msg
