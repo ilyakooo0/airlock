@@ -1,4 +1,4 @@
-module Ur.Run exposing (Model, application)
+module Ur.Run exposing (Model, Msg, application)
 
 import Browser exposing (Document, UrlRequest)
 import Browser.Navigation as Nav
@@ -8,10 +8,12 @@ import Html
 import Json.Decode as JD
 import Task
 import Time
+import Ur exposing (Agent, Path)
 import Ur.Cmd
 import Ur.Cmd.Internal
 import Ur.Constructor as C
 import Ur.Deconstructor as D
+import Ur.Phonemic exposing (Ship)
 import Ur.Requests exposing (..)
 import Ur.Sub
 import Ur.Sub.Internal
@@ -68,7 +70,7 @@ application :
     -> Program Flags (Model model msg) (Msg msg)
 application inp =
     let
-        { init, view, subscriptions, onUrlRequest, onUrlChange, urbitSubscriptions, createEventSource, onEventSourceMsg, urbitUrl } =
+        { init, view, onUrlRequest, onUrlChange, onEventSourceMsg } =
             inp
     in
     Browser.application
@@ -78,24 +80,30 @@ application inp =
                     ( app, appCmds ) =
                         init u key
 
-                    ( eventId, cmds, urReqs ) =
-                        processCmd 0 appCmds
+                    { subscriptions, eventId, subscriptionRequests, subscriptionIntMapping } =
+                        processUrSubs
+                            0
+                            Dict.empty
+                            (inp.urbitSubscriptions app |> (\(Ur.Sub.Internal.Sub x) -> x))
+
+                    ( eventId_, cmds, urReqs ) =
+                        processCmd eventId appCmds
 
                     url =
                         inp.urbitUrl app ++ "/~/channel/" ++ flags.uid
                 in
-                ( { subscriptions = Dict.empty
-                  , subscriptionIntMapping = Dict.empty
+                ( { subscriptions = subscriptions
+                  , subscriptionIntMapping = subscriptionIntMapping
                   , app = app
                   , connected = False
-                  , eventId = eventId
+                  , eventId = eventId_
                   , flags = flags
                   , requestsToRetry = []
                   }
                 , [ cmds
                   , pureCmd NeedsActivation
                   , send
-                        { requests = urReqs
+                        { requests = urReqs ++ subscriptionRequests
                         , url = url
                         , error = Noop
                         , success = Noop
@@ -111,7 +119,7 @@ application inp =
         , subscriptions =
             \model ->
                 Sub.batch
-                    [ subscriptions model.app |> Sub.map AppMsg
+                    [ inp.subscriptions model.app |> Sub.map AppMsg
                     , onEventSourceMsg EventSourceMsg
                     , if List.isEmpty model.requestsToRetry then
                         Sub.none
@@ -145,62 +153,20 @@ update inp msg model =
                 ( appModel, appCmds ) =
                     inp.update msg_ model.app
 
-                ( eventId, cmds, urReqs ) =
-                    processCmd model.eventId appCmds
+                { subscriptions, eventId, subscriptionRequests, subscriptionIntMapping } =
+                    processUrSubs
+                        model.eventId
+                        model.subscriptions
+                        (inp.urbitSubscriptions model.app |> (\(Ur.Sub.Internal.Sub x) -> x))
 
-                urbitSubs_ =
-                    inp.urbitSubscriptions model.app |> (\(Ur.Sub.Internal.Sub x) -> x)
-
-                urbitSubs =
-                    urbitSubs_
-                        |> Dict.map (\_ deconstructor -> { deconstructor = deconstructor })
-
-                ( eventId_, newSubscriptionActions ) =
-                    Dict.diff urbitSubs model.subscriptions
-                        |> Dict.toList
-                        |> List.map (\( address, _ ) -> ( Subscribe address, address ))
-                        |> tag eventId
-
-                removedSubscriptions =
-                    Dict.diff model.subscriptions urbitSubs
-
-                ( eventId__, removedSubscriptionActions ) =
-                    removedSubscriptions
-                        |> Dict.toList
-                        |> List.map (\( _, { number } ) -> Unsubscribe number)
-                        |> tag eventId_
-
-                keyToNumber =
-                    newSubscriptionActions |> List.map (\( a, ( _, b ) ) -> ( b, a )) |> Dict.fromList
-
-                newSubscriptions =
-                    Dict.merge
-                        (\_ _ x -> x)
-                        (\key number { deconstructor } ->
-                            Dict.insert key
-                                { deconstructor = deconstructor
-                                , number = number
-                                }
-                        )
-                        (\_ _ x -> x)
-                        keyToNumber
-                        urbitSubs
-                        Dict.empty
+                ( eventId_, cmds, urReqs ) =
+                    processCmd eventId appCmds
             in
             ( { model
                 | app = appModel
-                , eventId = eventId__
-                , subscriptions =
-                    Dict.diff model.subscriptions removedSubscriptions
-                        |> Dict.union newSubscriptions
-                , subscriptionIntMapping =
-                    model.subscriptionIntMapping
-                        |> Dict.union
-                            (newSubscriptions
-                                |> Dict.toList
-                                |> List.map (\( key, { number } ) -> ( number, key ))
-                                |> Dict.fromList
-                            )
+                , eventId = eventId_
+                , subscriptions = subscriptions
+                , subscriptionIntMapping = model.subscriptionIntMapping |> Dict.union subscriptionIntMapping
               }
             , Cmd.batch
                 [ cmds
@@ -210,15 +176,10 @@ update inp msg model =
                     , success = Noop
                     , requests = urReqs
                     }
-                , let
-                    requests =
-                        removedSubscriptionActions
-                            ++ (newSubscriptionActions |> List.map (\( id, ( req, _ ) ) -> ( id, req )))
-                  in
-                  send
-                    { requests = requests
+                , send
+                    { requests = subscriptionRequests
                     , url = url
-                    , error = requests |> List.map (\( _, x ) -> x) |> FailedRequest
+                    , error = subscriptionRequests |> List.map (\( _, x ) -> x) |> FailedRequest
                     , success = Noop
                     }
                 ]
@@ -352,3 +313,67 @@ processCmd eventId urCmds =
 pureCmd : msg -> Cmd msg
 pureCmd msg =
     Task.succeed msg |> Task.perform identity
+
+
+
+-- processUrSubs : EventId -> { a | subscriptions : Dict ( Ship, Agent, Path ) b } -> Dict c d -> number
+
+
+processUrSubs :
+    EventId
+    -> Dict ( Ship, Agent, Path ) { deconstructor : d, number : EventId }
+    -> Dict ( Ship, Agent, Path ) d
+    ->
+        { subscriptions : Dict ( Ship, Agent, Path ) { deconstructor : d, number : EventId }
+        , eventId : EventId
+        , subscriptionRequests : List ( EventId, UrbitRequest )
+        , subscriptionIntMapping : Dict EventId ( Ship, Agent, Path )
+        }
+processUrSubs eventId existingSubscriptions urbitSubs_ =
+    let
+        urbitSubs =
+            urbitSubs_
+                |> Dict.map (\_ deconstructor -> { deconstructor = deconstructor })
+
+        ( eventId_, newSubscriptionActions ) =
+            Dict.diff urbitSubs existingSubscriptions
+                |> Dict.toList
+                |> List.map (\( address, _ ) -> ( Subscribe address, address ))
+                |> tag eventId
+
+        removedSubscriptions =
+            Dict.diff existingSubscriptions urbitSubs
+
+        ( eventId__, removedSubscriptionActions ) =
+            removedSubscriptions
+                |> Dict.toList
+                |> List.map (\( _, { number } ) -> Unsubscribe number)
+                |> tag eventId_
+
+        keyToNumber =
+            newSubscriptionActions |> List.map (\( a, ( _, b ) ) -> ( b, a )) |> Dict.fromList
+
+        newSubscriptions =
+            Dict.merge
+                (\_ _ x -> x)
+                (\key number { deconstructor } ->
+                    Dict.insert key
+                        { deconstructor = deconstructor
+                        , number = number
+                        }
+                )
+                (\_ _ x -> x)
+                keyToNumber
+                urbitSubs
+                Dict.empty
+    in
+    { subscriptions = Dict.diff existingSubscriptions removedSubscriptions |> Dict.union newSubscriptions
+    , subscriptionIntMapping =
+        newSubscriptions
+            |> Dict.toList
+            |> List.map (\( key, { number } ) -> ( number, key ))
+            |> Dict.fromList
+    , eventId = eventId__
+    , subscriptionRequests =
+        removedSubscriptionActions ++ (newSubscriptionActions |> List.map (\( id, ( req, _ ) ) -> ( id, req )))
+    }
