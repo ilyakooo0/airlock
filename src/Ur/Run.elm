@@ -315,10 +315,6 @@ pureCmd msg =
     Task.succeed msg |> Task.perform identity
 
 
-
--- processUrSubs : EventId -> { a | subscriptions : Dict ( Ship, Agent, Path ) b } -> Dict c d -> number
-
-
 processUrSubs :
     EventId
     -> Dict ( Ship, Agent, Path ) { deconstructor : d, number : EventId }
