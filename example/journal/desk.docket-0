@@ -1,0 +1,12 @@
+:~
+  title+'Journal'
+  info+'Dear diary...'
+  color+0xd9.b06d
+  version+[0 1 1]
+  website+'https://urbit.org'
+  license+'MIT'
+  base+'journal'
+  :+  %glob-http
+    'https://m.tinnus-napbus.xyz/pub/journal-glob-0v3.gjphm.jp4u3.59f0f.a67bf.446k4.glob'
+  0v3.gjphm.jp4u3.59f0f.a67bf.446k4
+==
