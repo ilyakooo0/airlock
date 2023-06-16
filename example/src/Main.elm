@@ -11,7 +11,6 @@ import Time
 import Ur
 import Ur.Cmd
 import Ur.Constructor as C
-import Ur.Da
 import Ur.Deconstructor as D
 import Ur.Requests
 import Ur.Run
@@ -149,7 +148,7 @@ update msg model =
                             { ship = "~zod"
                             , agent = "journal"
                             , mark = "journal-action"
-                            , noun = C.cell (C.cord "add") (C.cell (Ur.Da.posixToDa time |> C.bigint) (C.cord txt))
+                            , noun = C.cell (C.cord "add") (C.cell (time |> Time.posixToMillis |> BigInt.fromInt |> C.bigint) (C.cord txt))
                             }
                             |> RunCmd
                     )

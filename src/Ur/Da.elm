@@ -20,4 +20,4 @@ second =
 
 posixToDa : Posix -> Da
 posixToDa p =
-    BigInt.add (BigInt.div (BigInt.mul (BigInt.fromInt (Time.posixToMillis p)) second) (BigInt.fromInt 1000)) unixEpochStart
+    BigInt.add (BigInt.div (BigInt.mul (BigInt.fromInt (Time.posixToMillis p)) second) (BigInt.fromInt 1000000)) unixEpochStart
