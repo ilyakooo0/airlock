@@ -1,12 +1,14 @@
-module Urbit.Deconstructor exposing
+module Ur.Deconstructor exposing
     ( Deconstructor
     , alt
+    , bigint
     , bytes
     , cell
     , const
     , cord
     , float32
     , float64
+    , ignore
     , int
     , list
     , llec
@@ -20,12 +22,14 @@ module Urbit.Deconstructor exposing
     , tar
     )
 
+import BigInt exposing (BigInt)
+import BigInt.Bytes
 import Bitwise
 import Bytes exposing (Bytes, Endianness(..))
 import Bytes.Decode as BD
 import Bytes.Encode as BE
 import Bytes.Extra
-import Urbit exposing (..)
+import Ur exposing (..)
 
 
 type Deconstructor a b
@@ -103,6 +107,19 @@ int =
                             Nothing
                     )
                         |> Maybe.map f
+
+                Cell _ ->
+                    Nothing
+        )
+
+
+bigint : Deconstructor (BigInt -> a) a
+bigint =
+    Deconstructor
+        (\x f ->
+            case x of
+                Atom bs ->
+                    BigInt.Bytes.decode bs |> f |> Just
 
                 Cell _ ->
                     Nothing
@@ -220,9 +237,14 @@ oneOf l =
             alt x (oneOf xs)
 
 
-tar : Deconstructor a a
+tar : Deconstructor (Noun -> a) a
 tar =
-    Deconstructor (\_ a -> Just a)
+    Deconstructor (\noun f -> Just (f noun))
+
+
+ignore : Deconstructor a a
+ignore =
+    Deconstructor (\_ f -> Just f)
 
 
 llec : Deconstructor a b -> Deconstructor b c -> Deconstructor a c

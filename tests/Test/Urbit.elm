@@ -1,5 +1,7 @@
 module Test.Urbit exposing (tests)
 
+import BigInt exposing (BigInt)
+import BigInt.Bytes
 import BitParser
 import BitWriter
 import Bytes exposing (Bytes)
@@ -9,9 +11,10 @@ import Fuzz exposing (Fuzzer)
 import List.Extra as List
 import Test exposing (..)
 import Test.Utils exposing (..)
-import Urbit exposing (..)
-import Urbit.Constructor as C
-import Urbit.Deconstructor as D
+import Ur exposing (..)
+import Ur.Constructor as C
+import Ur.Deconstructor as D
+import Ur.Uw
 
 
 tests : Test
@@ -74,6 +77,16 @@ tests =
                         (D.runBytes
                             (D.cell D.int D.int |> D.map Tuple.pair)
                             (Bytes.fromByteValues [ 0x31, 0x12 ])
+                        )
+                )
+            , test "1.686.761.906.334"
+                (\() ->
+                    Expect.equal
+                        (Just "1686761906334")
+                        (D.runBytes
+                            D.bigint
+                            (Bytes.fromByteValues [ 0x80, 0xC9, 0x13, 0x04, 0x5B, 0x17, 0x31 ])
+                            |> Maybe.map BigInt.toString
                         )
                 )
             , test "[4 ~[1 2 3]]"
@@ -149,12 +162,21 @@ tests =
                             (Bytes.fromByteValues [ 0xC1, 0x20, 0xE4, 0x01 ])
                         )
                 )
-            , test "65.600"
+            , test "Int 65.600"
                 (\() ->
                     Expect.equal
                         (Just 65600)
                         (D.runBytes
                             D.int
+                            (Bytes.fromByteValues [ 0xC0, 0x00, 0x02, 0x08 ])
+                        )
+                )
+            , test "BigInt 65.600"
+                (\() ->
+                    Expect.equal
+                        (Just (BigInt.fromInt 65600))
+                        (D.runBytes
+                            D.bigint
                             (Bytes.fromByteValues [ 0xC0, 0x00, 0x02, 0x08 ])
                         )
                 )
@@ -203,6 +225,12 @@ tests =
                             (C.tape x)
                         )
                 )
+            , Test.fuzz bigint "bigint" (\x -> Expect.equal (Just x) (D.run D.bigint (C.bigint x)))
+            ]
+        , Test.describe "Ur.Uw"
+            [ Test.fuzz atom
+                "encode <-> decode"
+                (\bs -> bytesEq bs (bs |> Ur.Uw.encode |> Ur.Uw.decode |> stripTrailingZeros))
             ]
         ]
 
@@ -234,7 +262,12 @@ atom : Fuzzer Bytes
 atom =
     bytes
         |> Fuzz.map
-            (\a -> a |> Bytes.toByteValues |> List.dropWhileRight (\x -> x == 0) |> Bytes.fromByteValues)
+            stripTrailingZeros
+
+
+stripTrailingZeros : Bytes -> Bytes
+stripTrailingZeros =
+    Bytes.toByteValues >> List.dropWhileRight (\x -> x == 0) >> Bytes.fromByteValues
 
 
 noun : () -> Fuzzer Noun
@@ -243,3 +276,8 @@ noun () =
         [ ( 0.6, atom |> Fuzz.map Atom )
         , ( 0.4, Fuzz.map2 (\a b -> Cell ( a, b )) (Fuzz.lazy noun) (Fuzz.lazy noun) )
         ]
+
+
+bigint : Fuzzer BigInt
+bigint =
+    bytes |> Fuzz.map BigInt.Bytes.decode

@@ -1,5 +1,7 @@
-module Urbit.Constructor exposing
+module Ur.Constructor exposing
     ( Constructor
+    , bigint
+    , bytes
     , cell
     , cord
     , float32
@@ -11,10 +13,12 @@ module Urbit.Constructor exposing
     , tape
     )
 
+import BigInt exposing (BigInt)
+import BigInt.Bytes
 import Bitwise
 import Bytes exposing (Bytes, Endianness(..))
 import Bytes.Encode as BE
-import Urbit exposing (..)
+import Ur exposing (..)
 
 
 type alias Constructor a =
@@ -40,6 +44,11 @@ int i =
                 BE.unsignedInt32 LE i
             )
         )
+
+
+bigint : BigInt -> Noun
+bigint x =
+    Atom (BigInt.Bytes.encode x)
 
 
 signedInt : Int -> Noun
