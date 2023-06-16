@@ -5,7 +5,7 @@
     "license": "MIT",
     "version": "1.0.0",
     "exposed-modules": [
-        "Urbit"
+        "Ur", "Ur.Cmd", "Ur.Sub", "Ur.Constructor", "Ur.Deconstructor", "Ur.Phonemic", "Ur.Da", "Ur.Uw", "Ur.Run"
     ],
     "elm-version": "0.19.0 <= v < 0.20.0",
     "dependencies": {
