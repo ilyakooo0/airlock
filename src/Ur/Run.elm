@@ -1,4 +1,4 @@
-module Ur.Run exposing (Model, Msg, application)
+module Ur.Run exposing (Model, Msg, Program, application)
 
 import Browser exposing (Document, UrlRequest)
 import Browser.Navigation as Nav
@@ -55,6 +55,10 @@ type Msg msg
     | RetryRequests
 
 
+type alias Program model msg =
+    Platform.Program Flags (Model model msg) (Msg msg)
+
+
 application :
     { init : Url -> Nav.Key -> ( model, Ur.Cmd.Cmd msg )
     , view : model -> Document msg
@@ -67,66 +71,20 @@ application :
     , onEventSourceMsg : (JD.Value -> Msg msg) -> Sub (Msg msg)
     , urbitUrl : model -> String
     }
-    -> Program Flags (Model model msg) (Msg msg)
+    -> Program model msg
 application inp =
     let
-        { init, view, onUrlRequest, onUrlChange, onEventSourceMsg } =
+        { view, onUrlRequest, onUrlChange } =
             inp
     in
     Browser.application
-        { init =
-            \flags u key ->
-                let
-                    ( app, appCmds ) =
-                        init u key
-
-                    { subscriptions, eventId, subscriptionRequests, subscriptionIntMapping } =
-                        processUrSubs
-                            0
-                            Dict.empty
-                            (inp.urbitSubscriptions app |> (\(Ur.Sub.Internal.Sub x) -> x))
-
-                    ( eventId_, cmds, urReqs ) =
-                        processCmd eventId appCmds
-
-                    url =
-                        inp.urbitUrl app ++ "/~/channel/" ++ flags.uid
-                in
-                ( { subscriptions = subscriptions
-                  , subscriptionIntMapping = subscriptionIntMapping
-                  , app = app
-                  , connected = False
-                  , eventId = eventId_
-                  , flags = flags
-                  , requestsToRetry = []
-                  }
-                , [ cmds
-                  , pureCmd NeedsActivation
-                  , send
-                        { requests = urReqs ++ subscriptionRequests
-                        , url = url
-                        , error = Noop
-                        , success = Noop
-                        }
-                  ]
-                    |> Cmd.batch
-                )
+        { init = \flags url key -> init inp (inp.init url key) flags
         , view =
             \model ->
                 view model.app
                     |> (\{ body, title } -> { title = title, body = body |> List.map (Html.map AppMsg) })
         , update = update inp
-        , subscriptions =
-            \model ->
-                Sub.batch
-                    [ inp.subscriptions model.app |> Sub.map AppMsg
-                    , onEventSourceMsg EventSourceMsg
-                    , if List.isEmpty model.requestsToRetry then
-                        Sub.none
-
-                      else
-                        Time.every 1000 (always RetryRequests)
-                    ]
+        , subscriptions = subscriptions inp
         , onUrlRequest = \req -> onUrlRequest req |> AppMsg
         , onUrlChange = \url -> onUrlChange url |> AppMsg
         }
@@ -153,20 +111,21 @@ update inp msg model =
                 ( appModel, appCmds ) =
                     inp.update msg_ model.app
 
-                { subscriptions, eventId, subscriptionRequests, subscriptionIntMapping } =
+                -- { subscriptions, eventId, subscriptionRequests, subscriptionIntMapping } =
+                subsResult =
                     processUrSubs
                         model.eventId
                         model.subscriptions
                         (inp.urbitSubscriptions model.app |> (\(Ur.Sub.Internal.Sub x) -> x))
 
                 ( eventId_, cmds, urReqs ) =
-                    processCmd eventId appCmds
+                    processCmd subsResult.eventId appCmds
             in
             ( { model
                 | app = appModel
                 , eventId = eventId_
-                , subscriptions = subscriptions
-                , subscriptionIntMapping = model.subscriptionIntMapping |> Dict.union subscriptionIntMapping
+                , subscriptions = subsResult.subscriptions
+                , subscriptionIntMapping = model.subscriptionIntMapping |> Dict.union subsResult.subscriptionIntMapping
               }
             , Cmd.batch
                 [ cmds
@@ -177,9 +136,9 @@ update inp msg model =
                     , requests = urReqs
                     }
                 , send
-                    { requests = subscriptionRequests
+                    { requests = subsResult.subscriptionRequests
                     , url = url
-                    , error = subscriptionRequests |> List.map (\( _, x ) -> x) |> FailedRequest
+                    , error = subsResult.subscriptionRequests |> List.map (\( _, x ) -> x) |> FailedRequest
                     , success = Noop
                     }
                 ]
@@ -373,3 +332,62 @@ processUrSubs eventId existingSubscriptions urbitSubs_ =
     , subscriptionRequests =
         removedSubscriptionActions ++ (newSubscriptionActions |> List.map (\( id, ( req, _ ) ) -> ( id, req )))
     }
+
+
+init :
+    { a | urbitSubscriptions : model -> Ur.Sub.Sub msg, urbitUrl : model -> String }
+    -> ( model, Ur.Cmd.Cmd msg )
+    -> Flags
+    ->
+        ( Model model msg
+        , Cmd (Msg msg)
+        )
+init inp ( app, appCmds ) flags =
+    let
+        subsResult =
+            processUrSubs
+                0
+                Dict.empty
+                (inp.urbitSubscriptions app |> (\(Ur.Sub.Internal.Sub x) -> x))
+
+        ( eventId_, cmds, urReqs ) =
+            processCmd subsResult.eventId appCmds
+
+        url =
+            inp.urbitUrl app ++ "/~/channel/" ++ flags.uid
+    in
+    ( { subscriptions = subsResult.subscriptions
+      , subscriptionIntMapping = subsResult.subscriptionIntMapping
+      , app = app
+      , connected = False
+      , eventId = eventId_
+      , flags = flags
+      , requestsToRetry = []
+      }
+    , [ cmds
+      , pureCmd NeedsActivation
+      , send
+            { requests = urReqs ++ subsResult.subscriptionRequests
+            , url = url
+            , error = Noop
+            , success = Noop
+            }
+      ]
+        |> Cmd.batch
+    )
+
+
+subscriptions :
+    { a | subscriptions : b -> Sub msg, onEventSourceMsg : (JD.Value -> Msg c) -> Sub (Msg msg) }
+    -> { d | app : b, requestsToRetry : List e }
+    -> Sub (Msg msg)
+subscriptions inp model =
+    Sub.batch
+        [ inp.subscriptions model.app |> Sub.map AppMsg
+        , inp.onEventSourceMsg EventSourceMsg
+        , if List.isEmpty model.requestsToRetry then
+            Sub.none
+
+          else
+            Time.every 1000 (always RetryRequests)
+        ]

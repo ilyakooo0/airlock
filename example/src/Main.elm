@@ -20,6 +20,7 @@ import Widget.Icon as Icon
 import Widget.Material as Material
 
 
+main : Ur.Run.Program Model Msg
 main =
     Ur.Run.application
         { init =
