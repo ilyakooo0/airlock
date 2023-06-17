@@ -1,10 +1,17 @@
-module Ur.Run exposing (Model, Msg, Program, application)
+module Ur.Run exposing
+    ( Model
+    , Msg
+    , Program
+    , application
+    , document
+    , element
+    )
 
 import Browser exposing (Document, UrlRequest)
 import Browser.Navigation as Nav
 import Dict exposing (Dict)
 import Either exposing (Either(..))
-import Html
+import Html exposing (Html)
 import Json.Decode as JD
 import Task
 import Time
@@ -57,6 +64,49 @@ type Msg msg
 
 type alias Program model msg =
     Platform.Program Flags (Model model msg) (Msg msg)
+
+
+element :
+    { init : ( model, Ur.Cmd.Cmd msg )
+    , view : model -> Html msg
+    , update : msg -> model -> ( model, Ur.Cmd.Cmd msg )
+    , subscriptions : model -> Sub msg
+    , urbitSubscriptions : model -> Ur.Sub.Sub msg
+    , createEventSource : String -> Cmd (Msg msg)
+    , onEventSourceMsg : (JD.Value -> Msg msg) -> Sub (Msg msg)
+    , urbitUrl : model -> String
+    }
+    -> Program model msg
+element inp =
+    Browser.element
+        { init = init inp inp.init
+        , view = \model -> inp.view model.app |> Html.map AppMsg
+        , update = update inp
+        , subscriptions = subscriptions inp
+        }
+
+
+document :
+    { init : ( model, Ur.Cmd.Cmd msg )
+    , view : model -> Document msg
+    , update : msg -> model -> ( model, Ur.Cmd.Cmd msg )
+    , subscriptions : model -> Sub msg
+    , urbitSubscriptions : model -> Ur.Sub.Sub msg
+    , createEventSource : String -> Cmd (Msg msg)
+    , onEventSourceMsg : (JD.Value -> Msg msg) -> Sub (Msg msg)
+    , urbitUrl : model -> String
+    }
+    -> Program model msg
+document inp =
+    Browser.document
+        { init = init inp inp.init
+        , view =
+            \model ->
+                inp.view model.app
+                    |> (\{ body, title } -> { title = title, body = body |> List.map (Html.map AppMsg) })
+        , update = update inp
+        , subscriptions = subscriptions inp
+        }
 
 
 application :
