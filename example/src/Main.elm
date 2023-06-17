@@ -27,10 +27,12 @@ main =
                 ( { error = ""
                   , entries = Nothing
                   , newEntry = ""
+                  , shipName = Nothing
                   }
                 , Cmd.batch
                     [ Ur.logIn "http://localhost:8080" "lidlut-tabwed-pillex-ridrup"
                         |> Cmd.map (result (Debug.toString >> Error) (always Noop))
+                    , Ur.getShipName "http://localhost:8080" |> Cmd.map (result (always Noop) GotShipName)
                     , Ur.Requests.scry
                         { url = "http://localhost:8080"
                         , agent = "journal"
@@ -51,18 +53,18 @@ main =
         , subscriptions = always Sub.none
         , createEventSource = createEventSource
         , urbitSubscriptions =
-            \{ entries } ->
-                case entries of
-                    Nothing ->
-                        Ur.Sub.none
-
-                    Just _ ->
+            \{ entries, shipName } ->
+                case ( entries, shipName ) of
+                    ( Just _, Just ship ) ->
                         Ur.Sub.subscribe
-                            { ship = "~zod"
+                            { ship = ship
                             , app = "journal"
                             , path = [ "updates" ]
                             , deconstructor = decodeJournalUpdate |> D.map GotUpdate
                             }
+
+                    _ ->
+                        Ur.Sub.none
         , onEventSourceMsg = onEventSourceMessage
         , onUrlChange = \_ -> Noop
         , onUrlRequest = \_ -> Noop
@@ -74,6 +76,7 @@ type alias Model =
     { error : String
     , entries : Maybe (List ( BigInt, String ))
     , newEntry : String
+    , shipName : Maybe String
     }
 
 
@@ -86,6 +89,7 @@ type Msg
     | DeleteEntry BigInt
     | AddEntry String
     | RunCmd (Ur.Cmd.Cmd Msg)
+    | GotShipName String
 
 
 update : Msg -> Model -> ( Model, Ur.Cmd.Cmd Msg )
@@ -157,6 +161,9 @@ update msg model =
 
         RunCmd cmd ->
             ( model, cmd )
+
+        GotShipName name ->
+            ( { model | shipName = Just name }, Ur.Cmd.none )
 
 
 type JournalUpdate

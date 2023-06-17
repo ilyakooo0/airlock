@@ -5,6 +5,7 @@ module Ur exposing
     , Noun(..)
     , Path
     , cue
+    , getShipName
     , jam
     , logIn
     , mat
@@ -50,6 +51,19 @@ logIn root password =
                 "application/x-www-form-urlencoded; charset=utf-8"
                 ("password=" ++ password)
         , expect = Http.expectWhatever identity
+        }
+
+
+getShipName : String -> Cmd (Result Http.Error String)
+getShipName root =
+    Http.riskyRequest
+        { url = root ++ "/~/name"
+        , method = "GET"
+        , headers = []
+        , timeout = Nothing
+        , tracker = Nothing
+        , body = Http.emptyBody
+        , expect = Http.expectString identity
         }
 
 
