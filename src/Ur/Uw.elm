@@ -1,5 +1,11 @@
 module Ur.Uw exposing (decode, encode)
 
+{-| This module works with Urbit base-64 encoded strings.
+
+@docs decode, encode
+
+-}
+
 import BitParser as BP
 import BitWriter as BW
 import Bitwise
@@ -9,6 +15,7 @@ import Dict
 import List.Extra
 
 
+{-| -}
 decode : String -> Bytes
 decode string =
     if string == "0w0" then
@@ -42,6 +49,7 @@ decode string =
         BW.run (go chars BW.empty)
 
 
+{-| -}
 encode : Bytes -> String
 encode bytes =
     let

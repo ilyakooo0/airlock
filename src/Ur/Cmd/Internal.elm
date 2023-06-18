@@ -1,7 +1,6 @@
 module Ur.Cmd.Internal exposing (Cmd(..))
 
-import Ur exposing (Agent, Mark, Noun)
-import Ur.Phonemic exposing (Ship)
+import Ur.Types exposing (Agent, Mark, Noun, Ship)
 
 
 type Cmd msg

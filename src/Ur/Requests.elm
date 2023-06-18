@@ -1,8 +1,6 @@
 module Ur.Requests exposing
     ( EventId
     , UrbitRequest(..)
-    , scry
-    , scryTask
     , send
     , sendTask
     , tag
@@ -13,8 +11,9 @@ import Http
 import Task exposing (Task)
 import Ur exposing (..)
 import Ur.Constructor as C
-import Ur.Deconstructor as D
-import Ur.Phonemic exposing (Ship)
+import Ur.Jam exposing (jam)
+import Ur.Phonemic
+import Ur.Types exposing (..)
 import Ur.Uw
 
 
@@ -68,7 +67,7 @@ sendTask { url, error, success, requests } =
                 requests
                     |> List.map (uncurry toNoun)
                     |> C.listOf identity
-                    |> Ur.jam
+                    |> jam
                     |> Ur.Uw.encode
                     |> Http.stringBody "application/x-urb-jam"
             , resolver =
@@ -89,58 +88,13 @@ type alias EventId =
     Int
 
 
-scry :
-    { url : String
-    , agent : Agent
-    , path : Path
-    , error : msg
-    , success : D.Deconstructor (msg -> msg) msg
-    }
-    -> Cmd msg
-scry args =
-    scryTask args |> Task.perform identity
-
-
-scryTask :
-    { url : String
-    , agent : Agent
-    , path : Path
-    , error : msg
-    , success : D.Deconstructor (msg -> msg) msg
-    }
-    -> Task a msg
-scryTask { url, agent, path, error, success } =
-    Http.riskyTask
-        { method = "GET"
-        , headers = []
-        , url = url ++ "/~/scry/" ++ agent ++ "/" ++ String.join "/" path ++ ".jam"
-        , body = Http.emptyBody
-        , resolver =
-            Http.bytesResolver
-                (\resp ->
-                    case resp of
-                        Http.GoodStatus_ _ bytes ->
-                            case D.runBytes success bytes of
-                                Just msg ->
-                                    Ok msg
-
-                                Nothing ->
-                                    Ok error
-
-                        _ ->
-                            Ok error
-                )
-        , timeout = Nothing
-        }
-
-
 toNoun : EventId -> UrbitRequest -> Noun
 toNoun eventId req =
     case req of
         Subscribe ( ship, app, path ) ->
             C.cell (C.cord "subscribe") <|
                 C.cell (C.int eventId) <|
-                    C.cell (Ur.Atom (Ur.Phonemic.fromString ship)) <|
+                    C.cell (Atom (Ur.Phonemic.fromString ship)) <|
                         C.cell (C.cord app) (C.listOf C.cord path)
 
         Unsubscribe subId ->
@@ -150,7 +104,7 @@ toNoun eventId req =
         Poke { ship, agent, mark, noun } ->
             C.cell (C.cord "poke") <|
                 C.cell (C.int eventId) <|
-                    C.cell (Ur.Atom (Ur.Phonemic.fromString ship)) <|
+                    C.cell (Atom (Ur.Phonemic.fromString ship)) <|
                         C.cell (C.cord agent) <|
                             C.cell (C.cord mark) <|
                                 noun

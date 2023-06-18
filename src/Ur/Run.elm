@@ -1,11 +1,10 @@
-module Ur.Run exposing
-    ( Model
-    , Msg
-    , Program
-    , application
-    , document
-    , element
-    )
+module Ur.Run exposing (element, document, application, Program, Model, Msg)
+
+{-|
+
+@docs element, document, application, Program, Model, Msg
+
+-}
 
 import Browser exposing (Document, UrlRequest)
 import Browser.Navigation as Nav
@@ -15,15 +14,14 @@ import Html exposing (Html)
 import Json.Decode as JD
 import Task
 import Time
-import Ur exposing (Agent, Path)
 import Ur.Cmd
 import Ur.Cmd.Internal
 import Ur.Constructor as C
 import Ur.Deconstructor as D
-import Ur.Phonemic exposing (Ship)
 import Ur.Requests exposing (..)
 import Ur.Sub
 import Ur.Sub.Internal
+import Ur.Types exposing (..)
 import Ur.Uw
 import Url exposing (Url)
 
@@ -41,6 +39,8 @@ type alias Flags =
     { uid : String }
 
 
+{-| An Urbit wrapper around your application model.
+-}
 type alias Model app msg =
     { subscriptions : SubDict msg
     , subscriptionIntMapping : Dict Int ( String, String, List String )
@@ -52,6 +52,8 @@ type alias Model app msg =
     }
 
 
+{-| An Urbit wrapper around your application messages.
+-}
 type Msg msg
     = AppMsg msg
     | EventSourceMsg JD.Value
@@ -62,10 +64,14 @@ type Msg msg
     | RetryRequests
 
 
+{-| A wrapper around your application `Program`
+-}
 type alias Program model msg =
     Platform.Program Flags (Model model msg) (Msg msg)
 
 
+{-| The same as `Browser.element` but with urbit stuff added around it.
+-}
 element :
     { init : ( model, Ur.Cmd.Cmd msg )
     , view : model -> Html msg
@@ -86,6 +92,8 @@ element inp =
         }
 
 
+{-| The same as `Browser.element` but with urbit stuff added around it.
+-}
 document :
     { init : ( model, Ur.Cmd.Cmd msg )
     , view : model -> Document msg
@@ -109,6 +117,8 @@ document inp =
         }
 
 
+{-| The same as `Browser.element` but with urbit stuff added around it.
+-}
 application :
     { init : Url -> Nav.Key -> ( model, Ur.Cmd.Cmd msg )
     , view : model -> Document msg
