@@ -14,6 +14,8 @@ import Test.Utils exposing (..)
 import Ur exposing (..)
 import Ur.Constructor as C
 import Ur.Deconstructor as D
+import Ur.Jam exposing (cue, jam, mat, rub)
+import Ur.Types exposing (..)
 import Ur.Uw
 
 
