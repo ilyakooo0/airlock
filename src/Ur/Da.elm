@@ -26,7 +26,7 @@ second =
     BigInt.fromIntString "18446744073709551616" |> Maybe.withDefault (BigInt.fromInt 0)
 
 
-{-| Converts `Posix` to a `@da`
+{-| Converts `Posix` to a `@da`.
 -}
 posixToDa : Posix -> Da
 posixToDa p =

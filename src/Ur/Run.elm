@@ -1,6 +1,6 @@
 module Ur.Run exposing (element, document, application, Program, Model, Msg)
 
-{-|
+{-| This module contains functions to run your application with Urbit integration.
 
 @docs element, document, application, Program, Model, Msg
 
@@ -64,7 +64,7 @@ type Msg msg
     | RetryRequests
 
 
-{-| A wrapper around your application `Program`
+{-| A wrapper around your application `Program`.
 -}
 type alias Program model msg =
     Platform.Program Flags (Model model msg) (Msg msg)

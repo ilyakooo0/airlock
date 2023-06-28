@@ -56,7 +56,22 @@ getShipName root =
         }
 
 
-{-| -}
+{-| Scry an agent at some path
+
+    scry
+        { url = "http://localhost:8080"
+        , agent = "journal"
+        , path = [ "entries", "all" ]
+        , error = Noop
+        , success =
+            D.cell D.ignore
+                (D.cell (D.const D.cord "jrnl")
+                    (D.list (D.cell D.bigint D.cord |> D.map (\a b -> ( a, b ))))
+                    |> D.map GotListings
+                )
+        }
+
+-}
 scry :
     { url : String
     , agent : Agent
@@ -69,7 +84,8 @@ scry args =
     scryTask args |> Task.perform identity
 
 
-{-| -}
+{-| Same as `scry` but returns a `Task` instead of a `Cmd`.
+-}
 scryTask :
     { url : String
     , agent : Agent
