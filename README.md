@@ -4,6 +4,10 @@
 
 ## Usage
 
+### Demo
+
+[![Demo](https://img.youtube.com/vi/KV49E-D-SOY/default.jpg)](https://youtu.be/KV49E-D-SOY)
+
 ### FFI
 
 Urbit subscriptions require [server-side event (SSE)](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events).
