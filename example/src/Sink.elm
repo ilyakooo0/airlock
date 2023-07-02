@@ -1,4 +1,4 @@
-port module Main exposing (main)
+port module Sink exposing (main)
 
 import BigInt exposing (BigInt)
 import Browser exposing (Document)
@@ -12,12 +12,17 @@ import Ur
 import Ur.Cmd
 import Ur.Constructor as C
 import Ur.Deconstructor as D
-import Ur.Requests
 import Ur.Run
 import Ur.Sub
+import Ur.Types exposing (Noun)
 import Widget
 import Widget.Icon as Icon
 import Widget.Material as Material
+
+
+url : String
+url =
+    "http://localhost:8080"
 
 
 main : Ur.Run.Program Model Msg
@@ -31,21 +36,9 @@ main =
                   , shipName = Nothing
                   }
                 , Cmd.batch
-                    [ Ur.logIn "http://localhost:8080" "lidlut-tabwed-pillex-ridrup"
+                    [ Ur.logIn url "lidlut-tabwed-pillex-ridrup"
                         |> Cmd.map (result (Debug.toString >> Error) (always Noop))
-                    , Ur.getShipName "http://localhost:8080" |> Cmd.map (result (always Noop) GotShipName)
-                    , Ur.Requests.scry
-                        { url = "http://localhost:8080"
-                        , agent = "journal"
-                        , path = [ "entries", "all" ]
-                        , error = Noop
-                        , success =
-                            D.cell D.ignore
-                                (D.cell (D.const D.cord "jrnl")
-                                    (D.list (D.cell D.bigint D.cord |> D.map (\a b -> ( a, b ))))
-                                    |> D.map GotListings
-                                )
-                        }
+                    , Ur.getShipName url |> Cmd.map (result (always Noop) GotShipName)
                     ]
                     |> Ur.Cmd.cmd
                 )
@@ -54,22 +47,26 @@ main =
         , subscriptions = always Sub.none
         , createEventSource = createEventSource
         , urbitSubscriptions =
-            \{ entries, shipName } ->
-                case ( entries, shipName ) of
-                    ( Just _, Just ship ) ->
-                        Ur.Sub.subscribe
-                            { ship = ship
-                            , app = "journal"
-                            , path = [ "updates" ]
-                            , deconstructor = decodeJournalUpdate |> D.map GotUpdate
-                            }
+            \{ shipName } ->
+                case shipName of
+                    Just ship ->
+                        Ur.Sub.batch
+                            [ Ur.Sub.sink
+                                { ship = ship
+                                , app = "journal"
+                                , path = [ "sync" ]
+                                , deconstructor =
+                                    D.list (D.cell D.bigint D.cord |> D.map (\a b -> ( a, b )))
+                                        |> D.map GotListings
+                                }
+                            ]
 
                     _ ->
                         Ur.Sub.none
         , onEventSourceMsg = onEventSourceMessage
         , onUrlChange = \_ -> Noop
         , onUrlRequest = \_ -> Noop
-        , urbitUrl = \_ -> "http://localhost:8080"
+        , urbitUrl = \_ -> url
         }
 
 
@@ -83,9 +80,9 @@ type alias Model =
 
 type Msg
     = Noop
+    | GotSink Noun
     | Error String
     | GotListings (List ( BigInt, String ))
-    | GotUpdate JournalUpdate
     | UpdateNewEntry String
     | DeleteEntry BigInt
     | AddEntry String
@@ -99,37 +96,14 @@ update msg model =
         Noop ->
             ( model, Ur.Cmd.none )
 
+        GotSink _ ->
+            ( model, Ur.Cmd.none )
+
         Error err ->
             ( { model | error = err }, Ur.Cmd.none )
 
         GotListings entries ->
             ( { model | entries = Just entries }, Ur.Cmd.none )
-
-        GotUpdate action ->
-            let
-                applyAction oldEntries =
-                    case action of
-                        Add id txt ->
-                            ( id, txt ) :: oldEntries
-
-                        Edit id txt ->
-                            oldEntries
-                                |> List.map
-                                    (\(( key, _ ) as value) ->
-                                        if key == id then
-                                            ( key, txt )
-
-                                        else
-                                            value
-                                    )
-
-                        Delete id ->
-                            oldEntries |> List.filter (\( key, _ ) -> key /= id)
-
-                newEntries =
-                    model.entries |> Maybe.map applyAction
-            in
-            ( { model | entries = newEntries }, Ur.Cmd.none )
 
         UpdateNewEntry txt ->
             ( { model | newEntry = txt }, Ur.Cmd.none )
@@ -165,22 +139,6 @@ update msg model =
 
         GotShipName name ->
             ( { model | shipName = Just name }, Ur.Cmd.none )
-
-
-type JournalUpdate
-    = Add BigInt String
-    | Edit BigInt String
-    | Delete BigInt
-
-
-decodeJournalUpdate : D.Deconstructor (JournalUpdate -> a) a
-decodeJournalUpdate =
-    D.cell D.ignore <|
-        D.oneOf
-            [ (D.cell (D.const D.cord "add") <| D.cell D.bigint D.cord) |> D.map Add
-            , (D.cell (D.const D.cord "edit") <| D.cell D.bigint D.cord) |> D.map Edit
-            , D.cell (D.const D.cord "del") D.bigint |> D.map Delete
-            ]
 
 
 view : Model -> Document Msg

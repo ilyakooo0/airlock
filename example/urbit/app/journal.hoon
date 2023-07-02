@@ -1,5 +1,5 @@
 /-  *journal
-/+  default-agent, dbug, agentio
+/+  default-agent, dbug, agentio, *sink
 |%
 +$  versioned-state
     $%  state-0
@@ -17,11 +17,18 @@
   ?.  (has:log-orm log unix-ms)
     unix-ms
   $(time (add unix-ms 1))
---
+-- 
+
 %-  agent:dbug
-=|  state-0
-=*  state  -
+=/  state  *state-0
+=/  snik  
+  :: %-
+  %+  sink  ~[/sync]  
+  |=(stat=versioned-state (tap:j-orm journal.stat))
+  :: !!
+=/  sink  (snik state)
 ^-  agent:gall
+
 |_  =bowl:gall
 +*  this  .
     def   ~(. (default-agent this %|) bowl)
@@ -34,7 +41,8 @@
 ++  on-load
   |=  old-vase=vase
   ^-  (quip card _this)
-  `this(state !<(versioned-state old-vase))
+  =/  state  !<(versioned-state old-vase)
+  `this(state state, sink (snik state))
 ::
 ++  on-poke
   |=  [=mark =vase]
@@ -42,27 +50,28 @@
   |^
   ?>  (team:title our.bowl src.bowl)
   ?.  ?=(%journal-action mark)  (on-poke:def mark vase)
-  =/  now=@  (unique-time now.bowl log)
+  =/  now=@  (unique-time now.bowl log.state)
   =/  act  !<(action vase)
   =.  state  (poke-action act)
-  :_  this(log (put:log-orm log now act))
-  ~[(fact:io journal-update+!>(`update`[now act]) ~[/updates])]
+  =^  card  sink  (sync:sink state)
+  :_  this(log.state (put:log-orm log.state now act))
+  ~[(fact:io journal-update+!>(`update`[now act]) ~[/updates]) card]
   ::
   ++  poke-action
     |=  act=action
     ^-  _state
     ?-    -.act
         %add
-      ?<  (has:j-orm journal id.act)
-      state(journal (put:j-orm journal id.act txt.act))
+      ?<  (has:j-orm journal.state id.act)
+      state(journal (put:j-orm journal.state id.act txt.act))
     ::
         %edit
-      ?>  (has:j-orm journal id.act)
-      state(journal (put:j-orm journal id.act txt.act))
+      ?>  (has:j-orm journal.state id.act)
+      state(journal (put:j-orm journal.state id.act txt.act))
     ::
         %del
-      ?>  (has:j-orm journal id.act)
-      state(journal +:(del:j-orm journal id.act))
+      ?>  (has:j-orm journal.state id.act)
+      state(journal +:(del:j-orm journal.state id.act))
     ==
   --
 ::
@@ -72,6 +81,7 @@
   ?>  (team:title our.bowl src.bowl)
   ?+  path  (on-watch:def path)
     [%updates ~]  `this
+    [%sync ~]  [~[flush:sink] this]
   ==
 ::
 ++  on-peek
@@ -85,14 +95,14 @@
         [%all ~]
       :^  ~  ~  %journal-update
       !>  ^-  update
-      [now %jrnl (tap:j-orm journal)]
+      [now %jrnl (tap:j-orm journal.state)]
     ::
         [%before @ @ ~]
       =/  before=@  (rash i.t.t.t.path dem)
       =/  max=@  (rash i.t.t.t.t.path dem)
       :^  ~  ~  %journal-update
       !>  ^-  update
-      [now %jrnl (tab:j-orm journal `before max)]
+      [now %jrnl (tab:j-orm journal.state `before max)]
     ::
         [%between @ @ ~]
       =/  start=@
@@ -101,7 +111,7 @@
       =/  end=@  (add 1 (rash i.t.t.t.t.path dem))
       :^  ~  ~  %journal-update
       !>  ^-  update
-      [now %jrnl (tap:j-orm (lot:j-orm journal `end `start))]
+      [now %jrnl (tap:j-orm (lot:j-orm journal.state `end `start))]
     ==
   ::
       [%x %updates *]
@@ -109,13 +119,13 @@
         [%all ~]
       :^  ~  ~  %journal-update
       !>  ^-  update
-      [now %logs (tap:log-orm log)]
+      [now %logs (tap:log-orm log.state)]
     ::
         [%since @ ~]
       =/  since=@  (rash i.t.t.t.path dem)
       :^  ~  ~  %journal-update
       !>  ^-  update
-      [now %logs (tap:log-orm (lot:log-orm log `since ~))]
+      [now %logs (tap:log-orm (lot:log-orm log.state `since ~))]
     ==
   ==
 ::
