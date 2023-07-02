@@ -22,10 +22,8 @@
 %-  agent:dbug
 =/  state  *state-0
 =/  snik  
-  :: %-
   %+  sink  ~[/sync]  
   |=(stat=versioned-state (tap:j-orm journal.stat))
-  :: !!
 =/  sink  (snik state)
 ^-  agent:gall
 
