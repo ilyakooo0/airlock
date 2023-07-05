@@ -1,4 +1,7 @@
-module Ur.Sub exposing (Sub, subscribe, none, batch)
+module Ur.Sub exposing
+    ( Sub, subscribe, none, batch
+    , sink
+    )
 
 {-| This module is conceptually similar to `Platform.Sub`, but also you to subscribe to Urbit channels.
 
@@ -29,7 +32,22 @@ type alias Sub msg =
 -}
 subscribe : { ship : String, app : String, path : List String, deconstructor : D.Deconstructor (msg -> msg) msg } -> Sub msg
 subscribe { ship, app, path, deconstructor } =
-    Dict.singleton ( ship, app, path ) deconstructor |> Ur.Sub.Internal.Sub
+    Dict.singleton ( ship, app, path )
+        { deconstructor = deconstructor
+        , sink = False
+        }
+        |> Ur.Sub.Internal.Sub
+
+
+{-| Create a Sink subscription.
+-}
+sink : { ship : String, app : String, path : List String, deconstructor : D.Deconstructor (msg -> msg) msg } -> Sub msg
+sink { ship, app, path, deconstructor } =
+    Dict.singleton ( ship, app, path )
+        { deconstructor = deconstructor
+        , sink = True
+        }
+        |> Ur.Sub.Internal.Sub
 
 
 {-| A subscription that does exactly nothing. (Does not subscribe to anything)

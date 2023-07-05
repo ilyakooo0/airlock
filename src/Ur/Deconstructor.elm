@@ -6,16 +6,16 @@ module Ur.Deconstructor exposing
     , int, signedInt, bigint
     , float32, float64
     , cord, tape
-    , bytes, sig, ignore, tar
+    , bytes, sig, ignore, tar, lazy
     )
 
 {-| This module provides an API to deconstruct `Noun`s into arbitrary Elm data structures.
 
 The principal (and types) are very similar to `Url.Parser` from `elm/url`.
 
-You would parse a `[%edit cord @]` like this:
+You would parse a `[%edit @ cord]` like this:
 
-     type alias Edit = {text : String, id: Int}
+     type alias Edit = {id: Int, text : String}
 
      (D.cell (D.const D.cord "edit") (D.cell D.int D.cord)) |> D.map Edit
 
@@ -63,7 +63,7 @@ that "capture" a value: `D.int` and `D.cord`.
 
 # Miscellaneous
 
-@docs bytes, sig, ignore, tar
+@docs bytes, sig, ignore, tar, lazy
 
 -}
 
@@ -367,6 +367,17 @@ cell (Deconstructor l) (Deconstructor r) =
 
                 Atom _ ->
                     Nothing
+        )
+
+
+{-| -}
+lazy : (() -> Deconstructor a b) -> Deconstructor a b
+lazy f =
+    Deconstructor
+        (\noun a ->
+            case f () of
+                Deconstructor g ->
+                    g noun a
         )
 
 

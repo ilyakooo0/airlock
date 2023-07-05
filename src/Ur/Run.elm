@@ -18,6 +18,7 @@ import Ur.Cmd
 import Ur.Cmd.Internal
 import Ur.Constructor as C
 import Ur.Deconstructor as D
+import Ur.NounDiff exposing (Patch, deconstructPatch)
 import Ur.Requests exposing (..)
 import Ur.Sub
 import Ur.Sub.Internal
@@ -32,6 +33,7 @@ type alias SubDict msg =
         ( String, String, List String )
         { deconstructor : D.Deconstructor (msg -> msg) msg
         , number : Int
+        , sink : Bool
         }
 
 
@@ -49,6 +51,7 @@ type alias Model app msg =
     , eventId : Int
     , flags : Flags
     , requestsToRetry : List UrbitRequest
+    , sinks : Dict Int Noun
     }
 
 
@@ -171,7 +174,6 @@ update inp msg model =
                 ( appModel, appCmds ) =
                     inp.update msg_ model.app
 
-                -- { subscriptions, eventId, subscriptionRequests, subscriptionIntMapping } =
                 subsResult =
                     processUrSubs
                         model.eventId
@@ -244,14 +246,51 @@ update inp msg model =
                                         Dict.get messageId model.subscriptionIntMapping
                                             |> Maybe.andThen (\key -> Dict.get key model.subscriptions)
                                     of
-                                        Just { deconstructor } ->
-                                            case D.run (D.cell D.ignore (D.cell D.ignore deconstructor)) rest of
-                                                Just subMsg ->
-                                                    ( model_, pureCmd (AppMsg subMsg) )
+                                        Just { deconstructor, sink } ->
+                                            if sink then
+                                                case D.run (D.cell D.ignore (D.cell D.ignore deconstructSink)) rest of
+                                                    Just (Flush noun) ->
+                                                        ( { model | sinks = Dict.insert messageId noun model.sinks }
+                                                        , case D.run deconstructor noun of
+                                                            Just subMsg ->
+                                                                pureCmd (AppMsg subMsg)
 
-                                                -- Got gargbage
-                                                Nothing ->
-                                                    ( model_, ackCmd )
+                                                            -- Got garbage
+                                                            Nothing ->
+                                                                Cmd.none
+                                                        )
+
+                                                    Just (Drain patch) ->
+                                                        case Dict.get messageId model.sinks of
+                                                            Just oldNoun ->
+                                                                let
+                                                                    newNoun =
+                                                                        Ur.NounDiff.apply patch oldNoun
+                                                                in
+                                                                ( { model | sinks = Dict.insert messageId newNoun model.sinks }
+                                                                , case D.run deconstructor newNoun of
+                                                                    Just subMsg ->
+                                                                        pureCmd (AppMsg subMsg)
+
+                                                                    Nothing ->
+                                                                        Cmd.none
+                                                                )
+
+                                                            Nothing ->
+                                                                ( model, Cmd.none )
+
+                                                    -- Got garbage
+                                                    Nothing ->
+                                                        ( model, Cmd.none )
+
+                                            else
+                                                case D.run (D.cell D.ignore (D.cell D.ignore deconstructor)) rest of
+                                                    Just subMsg ->
+                                                        ( model_, pureCmd (AppMsg subMsg) )
+
+                                                    -- Got gargbage
+                                                    Nothing ->
+                                                        ( model_, ackCmd )
 
                                         -- Got a fact for a subscription we do not hold
                                         Nothing ->
@@ -280,7 +319,7 @@ update inp msg model =
                         |> tag model.eventId
             in
             ( { model | eventId = eventId }
-            , send { url = url, requests = reqs, success = OpenConnection, error = NeedsActivation }
+            , send { url = url, requests = reqs, success = OpenConnection, error = Noop }
             )
 
         Noop ->
@@ -305,6 +344,19 @@ update inp msg model =
                 , requests = reqs
                 }
             )
+
+
+type Sink
+    = Flush Noun
+    | Drain Patch
+
+
+deconstructSink : D.Deconstructor (Sink -> c) c
+deconstructSink =
+    D.oneOf
+        [ D.cell (D.const D.cord "flush") D.tar |> D.map Flush
+        , D.cell (D.const D.cord "drain") deconstructPatch |> D.map Drain
+        ]
 
 
 processCmd : EventId -> Ur.Cmd.Cmd msg -> ( EventId, Cmd (Msg msg), List ( EventId, UrbitRequest ) )
@@ -336,10 +388,10 @@ pureCmd msg =
 
 processUrSubs :
     EventId
-    -> Dict ( Ship, Agent, Path ) { deconstructor : d, number : EventId }
-    -> Dict ( Ship, Agent, Path ) d
+    -> Dict ( Ship, Agent, Path ) { deconstructor : d, number : EventId, sink : Bool }
+    -> Dict ( Ship, Agent, Path ) { deconstructor : d, sink : Bool }
     ->
-        { subscriptions : Dict ( Ship, Agent, Path ) { deconstructor : d, number : EventId }
+        { subscriptions : Dict ( Ship, Agent, Path ) { deconstructor : d, number : EventId, sink : Bool }
         , eventId : EventId
         , subscriptionRequests : List ( EventId, UrbitRequest )
         , subscriptionIntMapping : Dict EventId ( Ship, Agent, Path )
@@ -348,7 +400,7 @@ processUrSubs eventId existingSubscriptions urbitSubs_ =
     let
         urbitSubs =
             urbitSubs_
-                |> Dict.map (\_ deconstructor -> { deconstructor = deconstructor })
+                |> Dict.map (\_ { deconstructor, sink } -> { deconstructor = deconstructor, sink = sink })
 
         ( eventId_, newSubscriptionActions ) =
             Dict.diff urbitSubs existingSubscriptions
@@ -371,10 +423,11 @@ processUrSubs eventId existingSubscriptions urbitSubs_ =
         newSubscriptions =
             Dict.merge
                 (\_ _ x -> x)
-                (\key number { deconstructor } ->
+                (\key number { deconstructor, sink } ->
                     Dict.insert key
                         { deconstructor = deconstructor
                         , number = number
+                        , sink = sink
                         }
                 )
                 (\_ _ x -> x)
@@ -417,6 +470,7 @@ init inp ( app, appCmds ) flags =
             inp.urbitUrl app ++ "/~/channel/" ++ flags.uid
     in
     ( { subscriptions = subsResult.subscriptions
+      , sinks = Dict.empty
       , subscriptionIntMapping = subsResult.subscriptionIntMapping
       , app = app
       , connected = False
@@ -439,7 +493,7 @@ init inp ( app, appCmds ) flags =
 
 subscriptions :
     { a | subscriptions : b -> Sub msg, onEventSourceMsg : (JD.Value -> Msg c) -> Sub (Msg msg) }
-    -> { d | app : b, requestsToRetry : List e }
+    -> { d | app : b, requestsToRetry : List e, connected : Bool }
     -> Sub (Msg msg)
 subscriptions inp model =
     Sub.batch
@@ -450,4 +504,9 @@ subscriptions inp model =
 
           else
             Time.every 1000 (always RetryRequests)
+        , if not model.connected then
+            Time.every 10000 (always NeedsActivation)
+
+          else
+            Sub.none
         ]

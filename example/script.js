@@ -2,7 +2,22 @@ import { fetchEventSource } from "/fetch-event-source.js"
 
 const uid = `${Math.floor(Date.now() / 1000)}-${Math.random()}`;
 
-let app = Elm.Main.init({ node: document.getElementById("elm"), flags: { uid } });
+function searchForInit(obj) {
+  if (obj.init) {
+    return obj.init;
+  } else {
+    for (let key in obj) {
+      if (obj.hasOwnProperty(key)) {
+        const result = searchForInit(obj[key]);
+        if (result) {
+          return result;
+        }
+      }
+    }
+  }
+}
+
+let app = searchForInit(Elm)({ node: document.getElementById("elm"), flags: { uid } });
 
 app.ports.createEventSource.subscribe((url) => {
   fetchEventSource(url, {
