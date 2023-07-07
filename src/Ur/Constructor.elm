@@ -89,7 +89,7 @@ signedInt i =
         )
 
 
-{-| Constructs an `Atom` from `Bytes`
+{-| Constructs an `Atom` from `Bytes`.
 -}
 bytes : Bytes -> Noun
 bytes =
@@ -103,7 +103,7 @@ cord s =
     Atom (BE.encode (BE.string s))
 
 
-{-| Constructs a [`tape`](https://developers.urbit.org/reference/glossary/tape) from a `String`
+{-| Constructs a [`tape`](https://developers.urbit.org/reference/glossary/tape) from a `String`.
 -}
 tape : String -> Noun
 tape s =

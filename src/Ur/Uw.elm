@@ -1,6 +1,6 @@
 module Ur.Uw exposing (decode, encode)
 
-{-| This module works with Urbit base-64 encoded strings.
+{-| This module works with Urbit base-64 encoded strings aka `@uw`.
 
 @docs decode, encode
 

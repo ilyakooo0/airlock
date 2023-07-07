@@ -16,7 +16,6 @@
         =/  dif
           %+  diff:noun-diff  (extract ^stat)  (extract stat)
         :-
-        ~&  [%give %fact pats %noun !>(^-((clog) [%drain dif]))] 
         [%give %fact pats %noun !>(^-((clog) [%drain dif]))] 
         ..sync(stat stat)
       ++  paths  pats

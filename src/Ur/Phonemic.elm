@@ -13,7 +13,7 @@ import Urbit.Encoding.Atom exposing (toBigInt)
 import Urbit.Encoding.Phonemic exposing (..)
 
 
-{-| Converts a ship name like `~zod` into an Atom.
+{-| Converts a ship name like `~zod` into an `Atom`.
 -}
 fromString : Ship -> Atom
 fromString s =

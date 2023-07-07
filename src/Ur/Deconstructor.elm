@@ -102,7 +102,7 @@ runBytes (Deconstructor f) bs =
 
 {-| Asserts that the value at the current position should be exactly equal to the second argument.
 
-The first argument is a `Deconstructor` for the gven tyoe.
+The first argument is a `Deconstructor` for the given type.
 
 The second argument is the value to compare with.
 
@@ -370,7 +370,9 @@ cell (Deconstructor l) (Deconstructor r) =
         )
 
 
-{-| -}
+{-| "Lazily" applies a deconstructor.
+This is useful when you are defining a recursive `Deconstructor` which needs to call itself.
+-}
 lazy : (() -> Deconstructor a b) -> Deconstructor a b
 lazy f =
     Deconstructor
