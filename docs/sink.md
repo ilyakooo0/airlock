@@ -54,11 +54,11 @@ Don't forget to reinitialize your `sink` when your restore your agent state in t
   |=  old-vase=vase
   ^-  (quip card _this)
   =/  state  !<(versioned-state old-vase)
-	::
-	:: the `sink (snik entries)` is the important bit.
+  ::
+  :: the `sink (snik entries)` is the important bit.
   `this(state state, sink (snik entries))
 ```
-	
+  
 Lastly, you need to send sink updates whenever you change your state. Most likely this will be in your `++on-poke` arm:
 
 ```hoon
@@ -79,9 +79,9 @@ main : Ur.Run.Program Model Msg
 main =
     Ur.Run.application
       {
-				-- ...
+        -- ...
           urbitSubscriptions =
-				-- ...
+        -- ...
             Ur.Sub.sink
               { ship = ship
               , app = "journal"
@@ -90,7 +90,7 @@ main =
                   D.list (D.cell D.bigint D.cord |> D.map (\a b -> ( a, b )))
                       |> D.map GotListings
               }
-				-- ...
+        -- ...
       }
 ```
 
