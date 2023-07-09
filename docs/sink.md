@@ -78,7 +78,7 @@ For your frontend to recieve %sink updates you need to pass the result of callin
 main : Ur.Run.Program Model Msg
 main =
     Ur.Run.application
-			{
+      {
 				-- ...
           urbitSubscriptions =
 				-- ...
