@@ -98,4 +98,4 @@ In the `deconstructor` field you specify a `Deconstructor` the deconstructs _the
 
 You do not have to deal with diffs. It is handled automatically
 
-You can look at [example/src/Sink.elm](../exmaple/src/Sink.elm) for a full example.
+You can look at [example/src/Sink.elm](../example/src/Sink.elm) for a full example.
