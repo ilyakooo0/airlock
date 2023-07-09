@@ -3,7 +3,7 @@ module Ur.Sub exposing
     , sink
     )
 
-{-| This module is conceptually similar to `Platform.Sub`, but also you to subscribe to Urbit channels.
+{-| This module is conceptually similar to `Platform.Sub`, but allows you to subscribe to Urbit channels.
 
 @docs Sub, subscribe, none, batch
 
@@ -14,7 +14,7 @@ import Ur.Deconstructor as D
 import Ur.Sub.Internal
 
 
-{-| Like `Sub` from `Platform.Sub`, but for Urbit subscriptions.
+{-| Like `Sub` from `Platform.Sub` but for Urbit subscriptions.
 -}
 type alias Sub msg =
     Ur.Sub.Internal.Sub msg
@@ -39,7 +39,7 @@ subscribe { ship, app, path, deconstructor } =
         |> Ur.Sub.Internal.Sub
 
 
-{-| Create a Sink subscription.
+{-| Creates a %sink subscription.
 -}
 sink : { ship : String, app : String, path : List String, deconstructor : D.Deconstructor (msg -> msg) msg } -> Sub msg
 sink { ship, app, path, deconstructor } =
