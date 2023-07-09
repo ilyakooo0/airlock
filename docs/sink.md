@@ -23,7 +23,7 @@ In order to use %sink you have to copy the following two files into your agent d
 1. [example/urbit/lib/noun-diff.hoon](../example/urbit/lib/noun-diff.hoon) -- contains the algorithm for diffing raw nouns.
 2. [example/urbit/lib/sink.hoon](../example/urbit/lib/sink.hoon) -- contains the logic of syncing the state between your agent and your frontend.
 
-#### Adding sink points into your agent
+#### Adding sync points into your agent
 
 First you need to import the %sink library into your agent:
 
@@ -34,20 +34,15 @@ First you need to import the %sink library into your agent:
 Next you need to initialize the sink. Put the following declaration somewhere before your agent door:
 
 ```hoon
-=/  snik
-	::
-	:: replace /sync with whatever path you want to use for syncing your state.
-  %+  sink  ~[/sync]
-	::
-	:: This part is a gate that extracts the state you want to sync from your agent state.
-	:: This allows you to sync only the part of your state that you need, saving resources.
-	:: If you want to sync the whole state then just pass identity: `|=(x=versioned-state x)`
-	::
-	:: versioned-state should be replaced with whatever the type of your application state is.
-  |=(stat=versioned-state !!)
+::
+:: A deferred expression of the state you want to sync to the frontend.
+=*  entries  (tap:j-orm journal.stat)
+::
+:: Replace /sync with whatever path you want to use for syncing your state.
+=/  snik  (sink ~[/sync])
 ::
 :: Next you initialize your sink with your initial agent state.
-=/  sink  (snik state)
+=/  sink  (snik entries)
 ```
 
 You can have multiple sinks in the same application to sync different parts of your state on different paths.
@@ -60,8 +55,8 @@ Don't forget to reinitialize your `sink` when your restore your agent state in t
   ^-  (quip card _this)
   =/  state  !<(versioned-state old-vase)
 	::
-	:: the `sink (snik state)` is the important bit.
-  `this(state state, sink (snik state))
+	:: the `sink (snik entries)` is the important bit.
+  `this(state state, sink (snik entries))
 ```
 	
 Lastly, you need to send sink updates whenever you change your state. Most likely this will be in your `++on-poke` arm:
@@ -70,7 +65,7 @@ Lastly, you need to send sink updates whenever you change your state. Most likel
 ::
 :: This line generates a `card` that you need to pass to arvo and updates 
 :: the `sink` to reference the latest state of your agent.
-=^  card  sink  (sync:sink state)
+=^  card  sink  (sync:sink entries)
 ```
 
 You can look at the [journal.hoon](../example/urbit/app/journal.hoon) for a full example.
@@ -86,14 +81,15 @@ main =
 			{
 				-- ...
           urbitSubscriptions =
-						Ur.Sub.sink
-							  { ship = "~zod"
-							  , app = "journal"
-							  , path = [ "sync" ]
-							  , deconstructor =
-							      D.list (D.cell D.bigint D.cord |> D.map (\a b -> ( a, b )))
-							          |> D.map GotListings
-							  }
+				-- ...
+            Ur.Sub.sink
+              { ship = ship
+              , app = "journal"
+              , path = [ "sync" ]
+              , deconstructor =
+                  D.list (D.cell D.bigint D.cord |> D.map (\a b -> ( a, b )))
+                      |> D.map GotListings
+              }
 				-- ...
 			}
 ```

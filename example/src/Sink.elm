@@ -80,7 +80,6 @@ type alias Model =
 
 type Msg
     = Noop
-    | GotSink Noun
     | Error String
     | GotListings (List ( BigInt, String ))
     | UpdateNewEntry String
@@ -94,9 +93,6 @@ update : Msg -> Model -> ( Model, Ur.Cmd.Cmd Msg )
 update msg model =
     case msg of
         Noop ->
-            ( model, Ur.Cmd.none )
-
-        GotSink _ ->
             ( model, Ur.Cmd.none )
 
         Error err ->
