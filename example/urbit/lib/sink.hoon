@@ -7,16 +7,15 @@
       [%drain patch:noun-diff]
     ==
   ++  sink
-    |*  [pats=(list path) extract=$-(* *)]
+    |*  [pats=(list path)]
     |*  stat=*  
     |@    
       ++  sync 
         |=  [stat=_stat]
         ^-  [card:agent:gall _..sync]
         =/  dif
-          %+  diff:noun-diff  (extract ^stat)  (extract stat)
+          %+  diff:noun-diff  ^stat  stat
         :-
-        ~&  [%give %fact pats %noun !>(^-((clog) [%drain dif]))] 
         [%give %fact pats %noun !>(^-((clog) [%drain dif]))] 
         ..sync(stat stat)
       ++  paths  pats

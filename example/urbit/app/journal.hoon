@@ -21,12 +21,11 @@
 
 %-  agent:dbug
 =/  state  *state-0
-=/  snik  
-  %+  sink  ~[/sync]  
-  |=(stat=versioned-state (tap:j-orm journal.stat))
-=/  sink  (snik state)
+=*  entries  (tap:j-orm journal.stat)
+=/  snik  (sink ~[/sync])
+=/  sink  (snik entries)
 ^-  agent:gall
-
+::
 |_  =bowl:gall
 +*  this  .
     def   ~(. (default-agent this %|) bowl)
@@ -40,7 +39,7 @@
   |=  old-vase=vase
   ^-  (quip card _this)
   =/  state  !<(versioned-state old-vase)
-  `this(state state, sink (snik state))
+  `this(state state, sink (snik entries))
 ::
 ++  on-poke
   |=  [=mark =vase]
@@ -51,7 +50,7 @@
   =/  now=@  (unique-time now.bowl log.state)
   =/  act  !<(action vase)
   =.  state  (poke-action act)
-  =^  card  sink  (sync:sink state)
+  =^  card  sink  (sync:sink entries)
   :_  this(log.state (put:log-orm log.state now act))
   ~[(fact:io journal-update+!>(`update`[now act]) ~[/updates]) card]
   ::
@@ -93,7 +92,7 @@
         [%all ~]
       :^  ~  ~  %journal-update
       !>  ^-  update
-      [now %jrnl (tap:j-orm journal.state)]
+      [now %jrnl entries]
     ::
         [%before @ @ ~]
       =/  before=@  (rash i.t.t.t.path dem)
