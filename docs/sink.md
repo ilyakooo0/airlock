@@ -91,7 +91,7 @@ main =
                       |> D.map GotListings
               }
 				-- ...
-			}
+      }
 ```
 
 In the `deconstructor` field you specify a `Deconstructor` the deconstructs _the whole_ state that is being synced form the %gall agent.
