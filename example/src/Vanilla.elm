@@ -46,9 +46,9 @@ main =
                         , success =
                             D.cell D.ignore
                                 (D.cell (D.const D.cord "jrnl")
-                                    (D.list (D.cell D.bigint D.cord |> D.map (\a b -> ( a, b ))))
-                                    |> D.map GotListings
+                                    (D.list (D.cell D.bigint D.cord))
                                 )
+                                |> D.map (\( (), ( (), listings ) ) -> GotListings listings)
                         }
                     ]
                     |> Ur.Cmd.cmd
@@ -177,14 +177,15 @@ type JournalUpdate
     | Delete BigInt
 
 
-decodeJournalUpdate : D.Deconstructor (JournalUpdate -> a) a
+decodeJournalUpdate : D.Deconstructor JournalUpdate
 decodeJournalUpdate =
-    D.cell D.ignore <|
-        D.oneOf
-            [ (D.cell (D.const D.cord "add") <| D.cell D.bigint D.cord) |> D.map Add
-            , (D.cell (D.const D.cord "edit") <| D.cell D.bigint D.cord) |> D.map Edit
-            , D.cell (D.const D.cord "del") D.bigint |> D.map Delete
-            ]
+    D.oneOf
+        [ (D.cell (D.const D.cord "add") <| D.cell D.bigint D.cord) |> D.map (\( (), ( id, txt ) ) -> Add id txt)
+        , D.cell (D.const D.cord "edit") (D.cell D.bigint D.cord) |> D.map (\( (), ( id, txt ) ) -> Edit id txt)
+        , D.cell (D.const D.cord "del") D.bigint |> D.map (\( (), id ) -> Delete id)
+        ]
+        |> D.cell D.ignore
+        |> D.map (\( (), upd ) -> upd)
 
 
 view : Model -> Document Msg

@@ -77,7 +77,7 @@ scry :
     , agent : Agent
     , path : Path
     , error : msg
-    , success : D.Deconstructor (msg -> msg) msg
+    , success : D.Deconstructor msg
     }
     -> Cmd msg
 scry args =
@@ -91,7 +91,7 @@ scryTask :
     , agent : Agent
     , path : Path
     , error : msg
-    , success : D.Deconstructor (msg -> msg) msg
+    , success : D.Deconstructor msg
     }
     -> Task a msg
 scryTask { url, agent, path, error, success } =

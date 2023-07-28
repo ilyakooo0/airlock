@@ -31,7 +31,7 @@ type alias SubDict msg =
     Dict
         -- (ship, agent, path)
         ( String, String, List String )
-        { deconstructor : D.Deconstructor (msg -> msg) msg
+        { deconstructor : D.Deconstructor msg
         , number : Int
         , sink : Bool
         }
@@ -211,12 +211,10 @@ update inp msg model =
                 Ok string ->
                     case
                         D.runBytes
-                            (D.cell D.int (D.cell D.cord D.tar)
-                                |> D.map (\a b c -> ( a, b, c ))
-                            )
+                            (D.cell D.int (D.cell D.cord D.tar))
                             (Ur.Uw.decode string)
                     of
-                        Just ( messageId, messageType, rest ) ->
+                        Just ( messageId, ( messageType, rest ) ) ->
                             let
                                 ( eventId, ackReqs ) =
                                     tag model.eventId [ Ack messageId ]
@@ -248,7 +246,7 @@ update inp msg model =
                                     of
                                         Just { deconstructor, sink } ->
                                             if sink then
-                                                case D.run (D.cell D.ignore (D.cell D.ignore deconstructSink)) rest of
+                                                case D.run (D.cell D.ignore (D.cell D.ignore deconstructSink) |> D.map (\( (), ( (), s ) ) -> s)) rest of
                                                     Just (Flush noun) ->
                                                         ( { model | sinks = Dict.insert messageId noun model.sinks }
                                                         , case D.run deconstructor noun of
@@ -284,7 +282,7 @@ update inp msg model =
                                                         ( model, Cmd.none )
 
                                             else
-                                                case D.run (D.cell D.ignore (D.cell D.ignore deconstructor)) rest of
+                                                case D.run (D.cell D.ignore (D.cell D.ignore deconstructor) |> D.map (\((), ((), m)) -> m)) rest of
                                                     Just subMsg ->
                                                         ( model_, pureCmd (AppMsg subMsg) )
 
@@ -351,11 +349,11 @@ type Sink
     | Drain Patch
 
 
-deconstructSink : D.Deconstructor (Sink -> c) c
+deconstructSink : D.Deconstructor Sink
 deconstructSink =
     D.oneOf
-        [ D.cell (D.const D.cord "flush") D.tar |> D.map Flush
-        , D.cell (D.const D.cord "drain") deconstructPatch |> D.map Drain
+        [ D.cell (D.const D.cord "flush") D.tar |> D.map (\( (), n ) -> Flush n)
+        , D.cell (D.const D.cord "drain") (D.lazy deconstructPatch) |> D.map (\( (), patch ) -> Drain patch)
         ]
 
 

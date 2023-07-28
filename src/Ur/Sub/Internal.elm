@@ -10,7 +10,7 @@ type Sub msg
         (Dict
             -- key is (ship, app, path)
             ( Ship, Agent, Path )
-            { deconstructor : D.Deconstructor (msg -> msg) msg
+            { deconstructor : D.Deconstructor msg
             , sink : Bool
             }
         )
