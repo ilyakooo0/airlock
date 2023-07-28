@@ -30,7 +30,7 @@ type alias Sub msg =
         }
 
 -}
-subscribe : { ship : String, app : String, path : List String, deconstructor : D.Deconstructor (msg -> msg) msg } -> Sub msg
+subscribe : { ship : String, app : String, path : List String, deconstructor : D.Deconstructor msg } -> Sub msg
 subscribe { ship, app, path, deconstructor } =
     Dict.singleton ( ship, app, path )
         { deconstructor = deconstructor
@@ -41,7 +41,7 @@ subscribe { ship, app, path, deconstructor } =
 
 {-| Creates a %sink subscription.
 -}
-sink : { ship : String, app : String, path : List String, deconstructor : D.Deconstructor (msg -> msg) msg } -> Sub msg
+sink : { ship : String, app : String, path : List String, deconstructor : D.Deconstructor msg } -> Sub msg
 sink { ship, app, path, deconstructor } =
     Dict.singleton ( ship, app, path )
         { deconstructor = deconstructor

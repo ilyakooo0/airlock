@@ -14,7 +14,6 @@ import Ur.Constructor as C
 import Ur.Deconstructor as D
 import Ur.Run
 import Ur.Sub
-import Ur.Types exposing (Noun)
 import Widget
 import Widget.Icon as Icon
 import Widget.Material as Material
@@ -56,7 +55,7 @@ main =
                                 , app = "journal"
                                 , path = [ "sync" ]
                                 , deconstructor =
-                                    D.list (D.cell D.bigint D.cord |> D.map (\a b -> ( a, b )))
+                                    D.list (D.cell D.bigint D.cord)
                                         |> D.map GotListings
                                 }
                             ]

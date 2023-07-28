@@ -11,29 +11,17 @@ type Patch
     | Diff DelDiff InsDiff
 
 
-deconstructPatch : D.Deconstructor (Patch -> c) c
-deconstructPatch =
+deconstructPatch : () -> D.Deconstructor Patch
+deconstructPatch () =
     D.oneOf
         [ D.cell (D.const D.cord "cell")
             (D.cell
-                (D.lazy (\() -> deconstructPatch_))
-                (D.lazy (\() -> deconstructPatch_))
+                (D.lazy deconstructPatch)
+                (D.lazy deconstructPatch)
             )
-            |> D.map PatchCell
-        , D.cell (D.const D.cord "diff") (D.cell deconstructDel deconstructIns) |> D.map Diff
-        ]
-
-
-deconstructPatch_ : D.Deconstructor (Patch -> c) c
-deconstructPatch_ =
-    D.oneOf
-        [ D.cell (D.const D.cord "cell")
-            (D.cell
-                deconstructPatch
-                deconstructPatch
-            )
-            |> D.map PatchCell
-        , D.cell (D.const D.cord "diff") (D.cell deconstructDel deconstructIns) |> D.map Diff
+            |> D.map (\( (), ( a, b ) ) -> PatchCell a b)
+        , D.cell (D.const D.cord "diff") (D.cell (D.lazy deconstructDel) (D.lazy deconstructIns))
+            |> D.map (\( (), ( a, b ) ) -> Diff a b)
         ]
 
 
@@ -93,31 +81,17 @@ type DelDiff
     | DelCell DelDiff DelDiff
 
 
-deconstructDel : D.Deconstructor (DelDiff -> c) c
-deconstructDel =
+deconstructDel : () -> D.Deconstructor DelDiff
+deconstructDel () =
     D.oneOf
-        [ D.cell (D.const D.cord "ignore") D.ignore |> D.map Ignore
-        , D.cell (D.const D.cord "hole") D.int |> D.map DelHole
+        [ D.cell (D.const D.cord "ignore") D.ignore |> D.map (\( (), () ) -> Ignore)
+        , D.cell (D.const D.cord "hole") D.int |> D.map (\( (), x ) -> DelHole x)
         , D.cell (D.const D.cord "cell")
             (D.cell
-                deconstructDel_
-                deconstructDel_
+                (D.lazy deconstructDel)
+                (D.lazy deconstructDel)
             )
-            |> D.map DelCell
-        ]
-
-
-deconstructDel_ : D.Deconstructor (DelDiff -> c) c
-deconstructDel_ =
-    D.oneOf
-        [ D.const D.cord "ignore" |> D.map Ignore
-        , D.cell (D.const D.cord "hole") D.int |> D.map DelHole
-        , D.cell (D.const D.cord "cell")
-            (D.cell
-                (D.lazy (\() -> deconstructDel))
-                (D.lazy (\() -> deconstructDel))
-            )
-            |> D.map DelCell
+            |> D.map (\( (), ( lhs, rhs ) ) -> DelCell lhs rhs)
         ]
 
 
@@ -127,29 +101,15 @@ type InsDiff
     | InsCell InsDiff InsDiff
 
 
-deconstructIns : D.Deconstructor (InsDiff -> c) c
-deconstructIns =
+deconstructIns : () -> D.Deconstructor InsDiff
+deconstructIns () =
     D.oneOf
-        [ D.cell (D.const D.cord "hole") D.int |> D.map InsHole
-        , D.cell (D.const D.cord "atom") D.bytes |> D.map InsAtom
+        [ D.cell (D.const D.cord "hole") D.int |> D.map (\( (), x ) -> InsHole x)
+        , D.cell (D.const D.cord "atom") D.bytes |> D.map (\( (), bs ) -> InsAtom bs)
         , D.cell (D.const D.cord "cell")
             (D.cell
-                deconstructIns_
-                deconstructIns_
+                (D.lazy deconstructIns)
+                (D.lazy deconstructIns)
             )
-            |> D.map InsCell
-        ]
-
-
-deconstructIns_ : D.Deconstructor (InsDiff -> c) c
-deconstructIns_ =
-    D.oneOf
-        [ D.cell (D.const D.cord "hole") D.int |> D.map InsHole
-        , D.cell (D.const D.cord "atom") D.bytes |> D.map InsAtom
-        , D.cell (D.const D.cord "cell")
-            (D.cell
-                (D.lazy (\() -> deconstructIns))
-                (D.lazy (\() -> deconstructIns))
-            )
-            |> D.map InsCell
+            |> D.map (\( (), ( a, b ) ) -> InsCell a b)
         ]
