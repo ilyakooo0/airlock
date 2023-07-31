@@ -113,6 +113,8 @@ const f value noun =
             Nothing
 
 
+{-| Extracts a `BigInt`.
+-}
 bigint : Deconstructor BigInt
 bigint x =
     case x of
@@ -272,6 +274,8 @@ lazy f noun =
     f () noun
 
 
+{-| Maps over the result of the deconstructor.
+-}
 map : (a -> b) -> Deconstructor a -> Deconstructor b
 map g f noun =
     f noun |> Maybe.map g

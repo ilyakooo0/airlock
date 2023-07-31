@@ -1,11 +1,8 @@
-module Ur.Sub exposing
-    ( Sub, subscribe, none, batch
-    , sink
-    )
+module Ur.Sub exposing (Sub, subscribe, none, batch, sink)
 
 {-| This module is conceptually similar to `Platform.Sub`, but allows you to subscribe to Urbit channels.
 
-@docs Sub, subscribe, none, batch
+@docs Sub, subscribe, none, batch, sink
 
 -}
 
