@@ -178,7 +178,7 @@ update inp msg model =
                     processUrSubs
                         model.eventId
                         model.subscriptions
-                        (inp.urbitSubscriptions model.app |> (\(Ur.Sub.Internal.Sub x) -> x))
+                        (inp.urbitSubscriptions appModel |> (\(Ur.Sub.Internal.Sub x) -> x))
 
                 ( eventId_, cmds, urReqs ) =
                     processCmd subsResult.eventId appCmds
@@ -282,7 +282,7 @@ update inp msg model =
                                                         ( model, Cmd.none )
 
                                             else
-                                                case D.run (D.cell D.ignore (D.cell D.ignore deconstructor) |> D.map (\((), ((), m)) -> m)) rest of
+                                                case D.run (D.cell D.ignore (D.cell D.ignore deconstructor) |> D.map (\( (), ( (), m ) ) -> m)) rest of
                                                     Just subMsg ->
                                                         ( model_, pureCmd (AppMsg subMsg) )
 

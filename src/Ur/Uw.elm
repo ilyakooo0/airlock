@@ -29,24 +29,24 @@ decode string =
                     -- 0w
                     |> List.drop 2
 
-            go : List Char -> BW.BitWriter -> BW.BitWriter
-            go cs writer =
+            go : List Char -> List Int -> BW.BitWriter -> BW.BitWriter
+            go cs append writer =
                 case cs of
                     [] ->
-                        writer
+                        BW.bits append writer
 
                     '.' :: rest ->
-                        go rest writer
+                        go rest append writer
 
                     c :: rest ->
                         case Dict.get c charToBits of
                             Just bits ->
-                                go rest writer |> BW.bits bits
+                                go rest (bits ++ append) writer
 
                             Nothing ->
-                                go rest writer
+                                go rest [] writer
         in
-        BW.run (go chars BW.empty)
+        BW.run (go chars [] BW.empty)
 
 
 {-| -}

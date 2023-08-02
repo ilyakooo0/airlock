@@ -14,17 +14,17 @@ import Bytes.Encode as BE
 
 empty : BitWriter
 empty =
-    BitWriter { running = Nothing, collected = BE.sequence [], offset = 0 }
+    BitWriter { running = Nothing, collected = [], offset = 0 }
 
 
 run : BitWriter -> Bytes
 run (BitWriter { running, collected }) =
     case running of
         Nothing ->
-            BE.encode collected
+            BE.encode (collected |> List.reverse |> BE.sequence)
 
         Just { value } ->
-            BE.sequence [ collected, BE.unsignedInt8 value ] |> BE.encode
+            BE.sequence (BE.unsignedInt8 value :: collected |> List.reverse) |> BE.encode
 
 
 type BitWriter
@@ -35,7 +35,7 @@ type BitWriter
                 , length : Int
                 }
         , offset : Int
-        , collected : BE.Encoder
+        , collected : List BE.Encoder
         }
 
 
@@ -68,7 +68,7 @@ bit b (BitWriter { running, collected, offset }) =
             if length == 7 then
                 BitWriter
                     { running = Nothing
-                    , collected = BE.sequence [ collected, BE.unsignedInt8 newValue ]
+                    , collected = BE.unsignedInt8 newValue :: collected
                     , offset = newOffset
                     }
 

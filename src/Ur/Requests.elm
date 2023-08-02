@@ -98,7 +98,7 @@ toNoun eventId req =
                         C.cell (C.cord app) (C.listOf C.cord path)
 
         Unsubscribe subId ->
-            C.cell (C.cord "usubscribe") <|
+            C.cell (C.cord "unsubscribe") <|
                 C.cell (C.int eventId) (C.int subId)
 
         Poke { ship, agent, mark, noun } ->
