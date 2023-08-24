@@ -313,7 +313,7 @@ update inp msg model =
         NeedsActivation ->
             let
                 ( eventId, reqs ) =
-                    [ Poke { ship = "~zod", agent = "hood", mark = "helm-hi", noun = C.cord "Opening airlock!" } ]
+                    [ Poke { ship = "", agent = "hood", mark = "helm-hi", noun = C.cord "Opening airlock!" } ]
                         |> tag model.eventId
             in
             ( { model | eventId = eventId }
