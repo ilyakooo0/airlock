@@ -6,7 +6,7 @@ module Ur.Deconstructor exposing
     , int, signedInt, bigint
     , float32, float64
     , cord, tape
-    , bytes, sig, ignore, tar, lazy
+    , bytes, sig, ignore, tar, lazy, debug
     )
 
 {-| This module provides an API to deconstruct `Noun`s into arbitrary Elm data structures.
@@ -55,7 +55,7 @@ You would parse a `[%edit @ cord]` like this:
 
 # Miscellaneous
 
-@docs bytes, sig, ignore, tar, lazy
+@docs bytes, sig, ignore, tar, lazy, debug
 
 -}
 
@@ -66,7 +66,7 @@ import Bytes exposing (Bytes, Endianness(..))
 import Bytes.Decode as BD
 import Bytes.Encode as BE
 import Bytes.Extra
-import Ur.Jam exposing (cue)
+import Ur.Jam exposing (cue, isSig)
 import Ur.Types exposing (..)
 
 
@@ -337,3 +337,42 @@ Always succeeds.
 tar : Deconstructor Noun
 tar =
     Just
+
+
+{-| Debug a deconstructor.
+If the deconstructor from the second argument fails then the failed nock will be printed to the console.
+-}
+debug : (String -> String) -> Deconstructor a -> Deconstructor a
+debug log f noun =
+    case f noun of
+        Just x ->
+            Just x
+
+        Nothing ->
+            let
+                _ =
+                    log (prettyNoun noun)
+            in
+            Nothing
+
+
+prettyNoun : Noun -> String
+prettyNoun noun =
+    let
+        go isRhs n =
+            case n of
+                Atom a ->
+                    if isSig a then
+                        "~"
+
+                    else
+                        "@"
+
+                Cell ( lhs, rhs ) ->
+                    if isRhs then
+                        go False lhs ++ " " ++ go True rhs
+
+                    else
+                        "[" ++ go False lhs ++ " " ++ go True rhs ++ "]"
+    in
+    go False noun
