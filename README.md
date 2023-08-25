@@ -8,7 +8,14 @@
 
 [![DEMO](https://img.youtube.com/vi/tynCzifvIzE/0.jpg)](https://www.youtube.com/watch?v=tynCzifvIzE)
 
+
+## Getting started
+
+The easiest way of using this library is by using the [airlock template](https://github.com/ilyakooo0/airlock-template).
+
 ### FFI
+
+This is for setting up this library from scratch.
 
 Urbit subscriptions require [server-side event (SSE)](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events).
 Unfortunately, Elm does not provide a native implementation.
